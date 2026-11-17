@@ -1,6 +1,6 @@
 /* Layout: garis grid vertikal, navbar pill, hamburger, hero, dan footer.
    R-07: Empat garis grid vertikal (4.8%, 35.45%, 64.7%, 95.2%) menjadi penanda struktur kolom dari hero hingga footer.
-   R-10: Efek blur (backdrop-filter) dibatasi hanya pada 2 elemen navigasi (.brand-mark dan .nav-desktop) sebagai aksen di atas langit biru. */
+   R-10: Efek blur (backdrop-filter) dibatasi pada 2 elemen utama (.nav-desktop di hero dan .flow-glass-panel di alur pendaftaran). */
 
 /* Empat garis grid vertikal 1px di latar belakang (4.8%, 35.45%, 64.7%, 95.2%) */
 .grid-lines {
@@ -55,9 +55,7 @@
   padding: 8px 16px;
   min-height: 44px;
   border-radius: var(--radius-btn);
-  background: rgba(13, 35, 98, 0.42);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background: rgba(13, 35, 98, 0.56);
   border: 1px solid var(--border-light);
   color: var(--ink-light);
   font-weight: 500;
@@ -290,20 +288,24 @@ body:has(#lang-en:checked) .lang-switch label[for='lang-en'] {
   font-size: 1.05rem;
 }
 
-/* Bagian konten di area terang (teks wajib gelap #0d0d0d, latar solid) */
+/* Bagian konten di bawah hero memakai gradien atmosferik terstruktur */
 .content-section {
   padding-block: clamp(48px, 6vw, 84px);
   color: var(--ink-dark);
 }
 
 .content-surface {
+  background-image: var(--section-grad-surface);
   background-color: var(--surface-white);
   color: var(--ink-dark);
 }
 
 .content-muted {
+  background-image: var(--section-grad-muted);
   background-color: var(--surface-muted);
   color: var(--ink-dark);
+  border-top: 1px solid var(--border-dark);
+  border-bottom: 1px solid var(--border-dark);
 }
 
 .section-head {
@@ -335,18 +337,26 @@ body:has(#lang-en:checked) .lang-switch label[for='lang-en'] {
   gap: clamp(16px, 2.5vw, 28px);
 }
 
-/* Daftar kategori event 5 kolom di desktop */
-.category-strip {
+/* Tata letak split kiri-kanan untuk Kategori Event agar berbeda dari grid kartu */
+.category-split {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 16px;
+  grid-template-columns: 0.82fr 1.18fr;
+  gap: clamp(24px, 4.5vw, 64px);
+  align-items: start;
 }
 
-/* Alur pendaftaran 4 langkah horizontal */
-.flow-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 16px;
+.category-intro h2 {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(1.9rem, 3.4vw, 3rem);
+  line-height: 1.05;
+  color: var(--ink-dark);
+  margin-bottom: 12px;
+}
+
+.category-intro p {
+  color: var(--ink-muted);
+  max-width: 38ch;
 }
 
 /* Galeri dokumentasi 3 kolom sejajar */
@@ -358,6 +368,7 @@ body:has(#lang-en:checked) .lang-switch label[for='lang-en'] {
 
 /* Bagian ajakan (CTA) di bawah */
 .cta-band {
+  background-image: var(--section-grad-cta);
   background-color: var(--surface-muted);
   border-top: 1px solid var(--border-dark);
   border-bottom: 1px solid var(--border-dark);
@@ -472,20 +483,14 @@ body:has(#lang-en:checked) .lang-switch label[for='lang-en'] {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .category-strip,
-  .flow-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
+  .category-split,
   .gallery-grid {
     grid-template-columns: 1fr;
   }
 }
 
 @media (max-width: 580px) {
-  .event-grid:not(.featured-snap),
-  .category-strip,
-  .flow-grid {
+  .event-grid:not(.featured-snap) {
     grid-template-columns: 1fr;
   }
 

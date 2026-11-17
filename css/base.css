@@ -24,7 +24,17 @@
   --blue-soft: #e9f0ff;
   --surface-white: #ffffff;
   --surface-card: #ffffff;
-  --surface-muted: #f4f7ff;
+  --surface-muted: #eef4ff;
+  --section-grad-surface: linear-gradient(180deg, #ffffff 0%, #f3f7ff 55%, #e7f0ff 100%);
+  --section-grad-muted:
+    radial-gradient(circle at 16% 24%, rgba(17, 80, 239, 0.08) 0%, rgba(17, 80, 239, 0) 50%),
+    radial-gradient(circle at 84% 76%, rgba(60, 122, 246, 0.1) 0%, rgba(60, 122, 246, 0) 54%),
+    linear-gradient(180deg, #e7f0ff 0%, #dde9ff 50%, #f3f7ff 100%);
+  --section-grad-cta:
+    radial-gradient(circle at 78% 50%, rgba(17, 80, 239, 0.12) 0%, rgba(17, 80, 239, 0) 58%),
+    linear-gradient(135deg, #e2ecff 0%, #f4f8ff 100%);
+  --glass-panel-bg: rgba(255, 255, 255, 0.76);
+  --glass-panel-border: rgba(17, 80, 239, 0.22);
   --ink-light: #ffffff;
   --ink-dark: #0d0d0d;
   --ink-muted: #454f63;
@@ -70,11 +80,23 @@
       #0b101b 100%
     );
     --surface-white: #0b101b;
-    --surface-card: #131b2e;
-    --surface-muted: #182238;
+    --surface-card: #121c33;
+    --surface-muted: #162340;
+    --section-grad-surface:
+      radial-gradient(circle at 82% 18%, rgba(60, 122, 246, 0.14) 0%, rgba(60, 122, 246, 0) 48%),
+      linear-gradient(180deg, #0b101b 0%, #0f1b38 52%, #0b1328 100%);
+    --section-grad-muted:
+      radial-gradient(circle at 16% 24%, rgba(60, 122, 246, 0.2) 0%, rgba(60, 122, 246, 0) 52%),
+      radial-gradient(circle at 86% 78%, rgba(17, 80, 239, 0.22) 0%, rgba(17, 80, 239, 0) 56%),
+      linear-gradient(180deg, #0d1936 0%, #12244f 50%, #0b1328 100%);
+    --section-grad-cta:
+      radial-gradient(circle at 78% 50%, rgba(60, 122, 246, 0.25) 0%, rgba(60, 122, 246, 0) 60%),
+      linear-gradient(135deg, #0f2252 0%, #0a142d 100%);
+    --glass-panel-bg: rgba(18, 31, 66, 0.62);
+    --glass-panel-border: rgba(134, 172, 251, 0.28);
     --ink-dark: #f4f6fb;
-    --ink-muted: #b6c2d9;
-    --border-dark: #26334d;
+    --ink-muted: #b8c5de;
+    --border-dark: #253554;
     --blue-soft: #1b2a4a;
     --status-open-bg: #113822;
     --status-open-ink: #8ce9ad;

@@ -259,69 +259,111 @@
       </div>
     </section>
 
-    <!-- Kategori event menuju halaman daftar event dengan filter CSS -->
+    <!-- Kategori event disusun split kiri-kanan dengan baris panah agar tidak mengulang grid kartu -->
     <section class="content-section content-muted">
-      <div class="wrap">
-        <div class="section-head">
-          <div>
-            <h2>
-              <span class="lang-id">Kategori Event Kampus</span>
-              <span class="lang-en">Campus Event Categories</span>
-            </h2>
-          </div>
+      <div class="wrap category-split">
+        <div class="category-intro">
+          <h2>
+            <span class="lang-id">Kategori Event Kampus</span>
+            <span class="lang-en">Campus Event Categories</span>
+          </h2>
           <p>
             <span class="lang-id">Saring jadwal kegiatan mahasiswa sesuai minat akademik, lomba, atau unit kegiatan</span>
             <span class="lang-en">Filter student activities by academic seminars, competitions, or campus clubs</span>
           </p>
         </div>
 
-        <div class="category-strip">
-          <a class="category-item" href="events.html">
-            <h3 class="category-item__title">Seminar</h3>
-            <p class="category-item__desc">
-              <span class="lang-id">Kuliah umum dan diskusi riset</span>
-              <span class="lang-en">Public lectures and research talks</span>
-            </p>
+        <div class="category-list">
+          <a class="category-row" href="events.html">
+            <span class="category-row__idx">01</span>
+            <div class="category-row__main">
+              <h3 class="category-row__title">Seminar</h3>
+              <p class="category-row__desc">
+                <span class="lang-id">Kuliah umum dan diskusi riset</span>
+                <span class="lang-en">Public lectures and research talks</span>
+              </p>
+            </div>
+            <span class="category-row__arrow" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M5 12h14M13 6l6 6-6 6"/>
+              </svg>
+            </span>
           </a>
-          <a class="category-item" href="events.html">
-            <h3 class="category-item__title">
-              <span class="lang-id">Lomba</span>
-              <span class="lang-en">Competitions</span>
-            </h3>
-            <p class="category-item__desc">
-              <span class="lang-id">Hackathon dan inovasi tim</span>
-              <span class="lang-en">Hackathons and team challenges</span>
-            </p>
+
+          <a class="category-row" href="events.html">
+            <span class="category-row__idx">02</span>
+            <div class="category-row__main">
+              <h3 class="category-row__title">
+                <span class="lang-id">Lomba</span>
+                <span class="lang-en">Competitions</span>
+              </h3>
+              <p class="category-row__desc">
+                <span class="lang-id">Hackathon dan inovasi tim</span>
+                <span class="lang-en">Hackathons and team challenges</span>
+              </p>
+            </div>
+            <span class="category-row__arrow" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M5 12h14M13 6l6 6-6 6"/>
+              </svg>
+            </span>
           </a>
-          <a class="category-item" href="events.html">
-            <h3 class="category-item__title">Workshop</h3>
-            <p class="category-item__desc">
-              <span class="lang-id">Pelatihan praktik langsung</span>
-              <span class="lang-en">Hands-on technical sessions</span>
-            </p>
+
+          <a class="category-row" href="events.html">
+            <span class="category-row__idx">03</span>
+            <div class="category-row__main">
+              <h3 class="category-row__title">Workshop</h3>
+              <p class="category-row__desc">
+                <span class="lang-id">Pelatihan praktik langsung</span>
+                <span class="lang-en">Hands-on technical sessions</span>
+              </p>
+            </div>
+            <span class="category-row__arrow" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M5 12h14M13 6l6 6-6 6"/>
+              </svg>
+            </span>
           </a>
-          <a class="category-item" href="events.html">
-            <h3 class="category-item__title">
-              <span class="lang-id">Pentas Seni</span>
-              <span class="lang-en">Arts Night</span>
-            </h3>
-            <p class="category-item__desc">
-              <span class="lang-id">Musik, tari, dan teater UKM</span>
-              <span class="lang-en">Student music, dance, and stage</span>
-            </p>
+
+          <a class="category-row" href="events.html">
+            <span class="category-row__idx">04</span>
+            <div class="category-row__main">
+              <h3 class="category-row__title">
+                <span class="lang-id">Pentas Seni</span>
+                <span class="lang-en">Arts Night</span>
+              </h3>
+              <p class="category-row__desc">
+                <span class="lang-id">Musik, tari, dan teater UKM</span>
+                <span class="lang-en">Student music, dance, and stage</span>
+              </p>
+            </div>
+            <span class="category-row__arrow" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M5 12h14M13 6l6 6-6 6"/>
+              </svg>
+            </span>
           </a>
-          <a class="category-item" href="events.html">
-            <h3 class="category-item__title">UKM</h3>
-            <p class="category-item__desc">
-              <span class="lang-id">Pekan terbuka dan rekrutmen</span>
-              <span class="lang-en">Open week and club recruitment</span>
-            </p>
+
+          <a class="category-row" href="events.html">
+            <span class="category-row__idx">05</span>
+            <div class="category-row__main">
+              <h3 class="category-row__title">UKM</h3>
+              <p class="category-row__desc">
+                <span class="lang-id">Pekan terbuka dan rekrutmen</span>
+                <span class="lang-en">Open week and club recruitment</span>
+              </p>
+            </div>
+            <span class="category-row__arrow" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M5 12h14M13 6l6 6-6 6"/>
+              </svg>
+            </span>
           </a>
         </div>
       </div>
     </section>
 
-    <!-- Alur pendaftaran 4 langkah sesuai kebutuhan alur pengguna PRD -->
+    <!-- Alur pendaftaran 4 langkah dalam panel glassmorphism dengan konektor panah -->
     <section class="content-section content-surface">
       <div class="wrap">
         <div class="section-head">
@@ -332,55 +374,86 @@
             </h2>
           </div>
           <p>
-            <span class="lang-id">Empat langkah ringkas dari memilih kegiatan hingga menyimpan jadwal ke kalender pribadi</span>
-            <span class="lang-en">Four steps from picking an event to saving its schedule on your calendar</span>
+            <span class="lang-id">Empat langkah berurutan dari memilih kegiatan hingga menyimpan jadwal ke kalender pribadi</span>
+            <span class="lang-en">Four sequential steps from picking an event to saving its schedule on your calendar</span>
           </p>
         </div>
 
-        <div class="flow-grid">
-          <div class="flow-step">
-            <span class="flow-step__num">01</span>
-            <h3 class="flow-step__title">
-              <span class="lang-id">Pilih Event</span>
-              <span class="lang-en">Pick an Event</span>
-            </h3>
-            <p class="flow-step__desc">
-              <span class="lang-id">Cari acara di halaman Event dan saring berdasarkan kategori</span>
-              <span class="lang-en">Browse the Events directory and filter by category</span>
-            </p>
-          </div>
-          <div class="flow-step">
-            <span class="flow-step__num">02</span>
-            <h3 class="flow-step__title">
-              <span class="lang-id">Isi Formulir</span>
-              <span class="lang-en">Fill the Form</span>
-            </h3>
-            <p class="flow-step__desc">
-              <span class="lang-id">Lengkapi nama, NIM, email kampus, dan nomor WhatsApp di halaman detail</span>
-              <span class="lang-en">Complete your name, student ID, campus email, and WhatsApp</span>
-            </p>
-          </div>
-          <div class="flow-step">
-            <span class="flow-step__num">03</span>
-            <h3 class="flow-step__title">
-              <span class="lang-id">Simpan Kalender</span>
-              <span class="lang-en">Save Calendar</span>
-            </h3>
-            <p class="flow-step__desc">
-              <span class="lang-id">Unduh file .ics atau tambahkan langsung ke Google Calendar</span>
-              <span class="lang-en">Download the .ics file or add straight to Google Calendar</span>
-            </p>
-          </div>
-          <div class="flow-step">
-            <span class="flow-step__num">04</span>
-            <h3 class="flow-step__title">
-              <span class="lang-id">Bagikan &amp; Hadir</span>
-              <span class="lang-en">Share &amp; Attend</span>
-            </h3>
-            <p class="flow-step__desc">
-              <span class="lang-id">Ajak rekan sekelas via WhatsApp dan datang sesuai jadwal rundown</span>
-              <span class="lang-en">Invite classmates via WhatsApp and arrive on schedule</span>
-            </p>
+        <div class="flow-glass-panel">
+          <div class="flow-timeline">
+            <div class="flow-step">
+              <div class="flow-step__head">
+                <span class="flow-step__num">01</span>
+              </div>
+              <h3 class="flow-step__title">
+                <span class="lang-id">Pilih Event</span>
+                <span class="lang-en">Pick an Event</span>
+              </h3>
+              <p class="flow-step__desc">
+                <span class="lang-id">Cari acara di halaman Event dan saring berdasarkan kategori</span>
+                <span class="lang-en">Browse the Events directory and filter by category</span>
+              </p>
+            </div>
+
+            <div class="flow-connector" aria-hidden="true">
+              <svg viewBox="0 0 36 20" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="M2 10h28M23 4l7 6-7 6"/>
+              </svg>
+            </div>
+
+            <div class="flow-step">
+              <div class="flow-step__head">
+                <span class="flow-step__num">02</span>
+              </div>
+              <h3 class="flow-step__title">
+                <span class="lang-id">Isi Formulir</span>
+                <span class="lang-en">Fill the Form</span>
+              </h3>
+              <p class="flow-step__desc">
+                <span class="lang-id">Lengkapi nama, NIM, email kampus, dan nomor WhatsApp di halaman detail</span>
+                <span class="lang-en">Complete your name, student ID, campus email, and WhatsApp</span>
+              </p>
+            </div>
+
+            <div class="flow-connector" aria-hidden="true">
+              <svg viewBox="0 0 36 20" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="M2 10h28M23 4l7 6-7 6"/>
+              </svg>
+            </div>
+
+            <div class="flow-step">
+              <div class="flow-step__head">
+                <span class="flow-step__num">03</span>
+              </div>
+              <h3 class="flow-step__title">
+                <span class="lang-id">Simpan Kalender</span>
+                <span class="lang-en">Save Calendar</span>
+              </h3>
+              <p class="flow-step__desc">
+                <span class="lang-id">Unduh file .ics atau tambahkan langsung ke Google Calendar</span>
+                <span class="lang-en">Download the .ics file or add straight to Google Calendar</span>
+              </p>
+            </div>
+
+            <div class="flow-connector" aria-hidden="true">
+              <svg viewBox="0 0 36 20" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="M2 10h28M23 4l7 6-7 6"/>
+              </svg>
+            </div>
+
+            <div class="flow-step">
+              <div class="flow-step__head">
+                <span class="flow-step__num">04</span>
+              </div>
+              <h3 class="flow-step__title">
+                <span class="lang-id">Bagikan &amp; Hadir</span>
+                <span class="lang-en">Share &amp; Attend</span>
+              </h3>
+              <p class="flow-step__desc">
+                <span class="lang-id">Ajak rekan sekelas via WhatsApp dan datang sesuai jadwal rundown</span>
+                <span class="lang-en">Invite classmates via WhatsApp and arrive on schedule</span>
+              </p>
+            </div>
           </div>
         </div>
       </div>
