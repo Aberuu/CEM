@@ -1,0 +1,529 @@
+/* ==========================================================================
+   COMPONENTS.CSS — Kartu event (rasio 0.79), lencana, tombol, filter :has(), kalender
+   ========================================================================== */
+
+/* Tombol utama & sekunder (minimal tap target 44px) */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 12px 22px;
+  border-radius: var(--radius-btn);
+  font-family: var(--font-sans);
+  font-size: 0.95rem;
+  font-weight: 500;
+  border: 1px solid transparent;
+  transition: background-color 0.2s ease, transform 0.15s ease, border-color 0.2s ease;
+}
+
+.btn:active {
+  transform: scale(0.98);
+}
+
+.btn-primary {
+  background-color: #ffffff;
+  color: #0d0d0d;
+}
+
+.btn-primary:hover {
+  background-color: #e9f0ff;
+}
+
+.btn-accent {
+  background-color: var(--blue-primary);
+  color: #ffffff;
+}
+
+.btn-accent:hover {
+  background-color: var(--blue-deep);
+}
+
+.btn-outline {
+  background-color: var(--surface-card);
+  color: var(--ink-dark);
+  border-color: var(--border-dark);
+}
+
+.btn-outline:hover {
+  border-color: var(--blue-primary);
+  color: var(--blue-primary);
+}
+
+.btn svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+/* Kartu Event dengan background solid agar kontras terjamin */
+.event-card {
+  display: flex;
+  flex-direction: column;
+  background-color: var(--surface-card);
+  border: 1px solid var(--border-dark);
+  border-radius: var(--radius-card);
+  overflow: hidden;
+  transition: transform 0.22s ease, border-color 0.22s ease;
+}
+
+.event-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--blue-primary);
+}
+
+/* Poster rasio 0.79 sesuai PRD (79:100) */
+.event-card__media {
+  position: relative;
+  aspect-ratio: 79 / 100;
+  overflow: hidden;
+  background-color: var(--blue-soft);
+}
+
+.event-card__media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.35s ease;
+}
+
+.event-card:hover .event-card__media img {
+  transform: scale(1.03);
+}
+
+.event-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px;
+  flex: 1;
+}
+
+.event-card__meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: var(--radius-badge);
+  font-family: var(--font-caption);
+  font-size: 0.78rem;
+  font-weight: 500;
+}
+
+.badge--cat {
+  background-color: var(--blue-soft);
+  color: var(--blue-deep);
+}
+
+@media (prefers-color-scheme: dark) {
+  .badge--cat {
+    color: #b9cffd;
+  }
+}
+
+.badge--open {
+  background-color: var(--status-open-bg);
+  color: var(--status-open-ink);
+}
+
+.badge--soon {
+  background-color: var(--status-soon-bg);
+  color: var(--status-soon-ink);
+}
+
+.badge--closed {
+  background-color: var(--status-closed-bg);
+  color: var(--status-closed-ink);
+}
+
+.event-card__title {
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  font-weight: 500;
+  line-height: 1.25;
+  color: var(--ink-dark);
+}
+
+.event-card__info {
+  font-family: var(--font-caption);
+  font-size: 0.9rem;
+  color: var(--ink-muted);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.event-card__cta {
+  margin-top: auto;
+  padding-top: 8px;
+}
+
+/* Filter Kategori murni CSS dengan radio button + :has() */
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 28px;
+}
+
+.filter-input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 8px 18px;
+  border-radius: var(--radius-pill);
+  background-color: var(--surface-card);
+  border: 1px solid var(--border-dark);
+  color: var(--ink-dark);
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+.filter-chip:hover {
+  border-color: var(--blue-primary);
+}
+
+/* Status aktif chip filter */
+.events-scope:has(#cat-all:checked) label[for='cat-all'],
+.events-scope:has(#cat-seminar:checked) label[for='cat-seminar'],
+.events-scope:has(#cat-lomba:checked) label[for='cat-lomba'],
+.events-scope:has(#cat-workshop:checked) label[for='cat-workshop'],
+.events-scope:has(#cat-seni:checked) label[for='cat-seni'],
+.events-scope:has(#cat-ukm:checked) label[for='cat-ukm'] {
+  background-color: var(--blue-primary);
+  border-color: var(--blue-primary);
+  color: #ffffff;
+}
+
+/* Sembunyikan kartu yang tidak sesuai kategori terpilih */
+.events-scope:has(#cat-seminar:checked) .event-card:not([data-cat='seminar']),
+.events-scope:has(#cat-lomba:checked) .event-card:not([data-cat='lomba']),
+.events-scope:has(#cat-workshop:checked) .event-card:not([data-cat='workshop']),
+.events-scope:has(#cat-seni:checked) .event-card:not([data-cat='seni']),
+.events-scope:has(#cat-ukm:checked) .event-card:not([data-cat='ukm']) {
+  display: none;
+}
+
+/* Detail Event */
+.detail-layout {
+  display: grid;
+  grid-template-columns: 1.25fr 0.75fr;
+  gap: clamp(24px, 4vw, 48px);
+  align-items: start;
+}
+
+.detail-panel {
+  background-color: var(--surface-card);
+  border: 1px solid var(--border-dark);
+  border-radius: var(--radius-card);
+  padding: clamp(20px, 3vw, 32px);
+}
+
+.detail-poster {
+  border-radius: var(--radius-card);
+  overflow: hidden;
+  aspect-ratio: 16 / 10;
+  margin-bottom: 24px;
+  background-color: var(--blue-soft);
+}
+
+.detail-poster img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.rundown-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.rundown-item {
+  display: grid;
+  grid-template-columns: 130px 1fr;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: var(--radius-btn);
+  background-color: var(--surface-muted);
+}
+
+.rundown-time {
+  font-family: var(--font-caption);
+  font-weight: 500;
+  color: var(--blue-deep);
+}
+
+@media (prefers-color-scheme: dark) {
+  .rundown-time {
+    color: #9dc0ff;
+  }
+}
+
+.action-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.placeholder-note {
+  margin-top: 14px;
+  padding: 10px 12px;
+  border-radius: var(--radius-badge);
+  background-color: var(--surface-muted);
+  border: 1px solid var(--border-dark);
+  font-family: var(--font-caption);
+  font-size: 0.82rem;
+  color: var(--ink-muted);
+}
+
+/* Formulir pendaftaran bawaan (HTML + CSS murni tanpa JavaScript) */
+.reg-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-field label {
+  font-family: var(--font-caption);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--ink-dark);
+}
+
+.form-field input,
+.form-field select,
+.form-field textarea {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border-radius: var(--radius-btn);
+  border: 1px solid var(--border-dark);
+  background-color: var(--surface-white);
+  color: var(--ink-dark);
+  font-family: var(--font-sans);
+  font-size: 0.95rem;
+}
+
+.form-field input:focus-visible,
+.form-field select:focus-visible,
+.form-field textarea:focus-visible {
+  border-color: var(--blue-primary);
+}
+
+.form-field input:user-invalid,
+.form-field select:user-invalid {
+  border-color: #b42318;
+}
+
+.form-status {
+  display: none;
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: var(--radius-btn);
+  background-color: var(--status-open-bg);
+  color: var(--status-open-ink);
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.form-status:target {
+  display: block;
+}
+
+/* Kartu anggota per-container di halaman Tentang */
+.member-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.member-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px;
+  border-radius: var(--radius-card);
+  background-color: var(--surface-muted);
+  border: 1px solid var(--border-dark);
+}
+
+.member-card__role {
+  font-family: var(--font-caption);
+  font-size: 0.8rem;
+  color: var(--ink-muted);
+}
+
+.member-card__name {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 500;
+  color: var(--ink-dark);
+}
+
+.member-card__nim {
+  font-family: var(--font-caption);
+  font-size: 0.85rem;
+  color: var(--ink-muted);
+}
+
+.linkedin-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 8px 14px;
+  border-radius: var(--radius-btn);
+  background-color: var(--surface-card);
+  border: 1px solid var(--border-dark);
+  color: var(--ink-dark);
+  font-size: 0.85rem;
+  font-weight: 500;
+  align-self: flex-start;
+  transition: border-color 0.2s ease, color 0.2s ease;
+}
+
+.linkedin-link:hover {
+  border-color: #0a66c2;
+  color: #0a66c2;
+}
+
+.linkedin-link svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  color: #0a66c2;
+}
+
+@media (max-width: 640px) {
+  .member-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.info-dl {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.info-dl dt {
+  font-family: var(--font-caption);
+  font-size: 0.82rem;
+  color: var(--ink-muted);
+}
+
+.info-dl dd {
+  margin: 2px 0 0;
+  font-weight: 500;
+}
+
+/* Tabel Kalender Bulanan */
+.calendar-wrap {
+  overflow-x: auto;
+  background-color: var(--surface-card);
+  border: 1px solid var(--border-dark);
+  border-radius: var(--radius-card);
+}
+
+.calendar-table {
+  width: 100%;
+  min-width: 640px;
+  border-collapse: collapse;
+}
+
+.calendar-table th,
+.calendar-table td {
+  border: 1px solid var(--border-dark);
+  padding: 12px;
+  vertical-align: top;
+  width: 14.28%;
+}
+
+.calendar-table th {
+  background-color: var(--surface-muted);
+  font-family: var(--font-caption);
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-align: left;
+}
+
+.calendar-table td {
+  height: 108px;
+}
+
+.cal-day {
+  display: block;
+  font-weight: 500;
+  margin-bottom: 6px;
+}
+
+.cal-has-event {
+  background-color: var(--blue-soft);
+}
+
+.cal-event-link {
+  display: block;
+  padding: 6px 8px;
+  border-radius: var(--radius-badge);
+  background-color: var(--blue-primary);
+  color: #ffffff;
+  font-size: 0.78rem;
+  line-height: 1.3;
+}
+
+.cal-event-link:hover {
+  background-color: var(--blue-deep);
+}
+
+/* Halaman Tentang & Kontak */
+.about-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: clamp(20px, 3vw, 36px);
+}
+
+.map-frame {
+  width: 100%;
+  height: 320px;
+  border: 0;
+  border-radius: var(--radius-card);
+}
+
+@media (max-width: 860px) {
+  .detail-layout,
+  .about-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .rundown-item {
+    grid-template-columns: 1fr;
+  }
+}
