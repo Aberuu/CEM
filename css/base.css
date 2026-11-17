@@ -1,9 +1,7 @@
-/* ==========================================================================
-   BASE.CSS — Reset, variabel warna, tipografi, aksesibilitas, dan pengalih bahasa
+/* Base styles: reset, palet, tipografi, aksesibilitas, dan pengalih bahasa CSS.
    Design Read: Portal event kampus untuk mahasiswa & panitia UKM, gaya editorial biru-putih, dial ENERGY 2 / RHYTHM 2 / MOTION 2.
    R-01: Gradien langit biru ke putih memisahkan zona hero di atas dari zona kartu konten solid di bawah.
-   R-06: Playfair Display memberi karakter editorial akademik pada judul; Archivo menjaga keterbacaan isi; Manrope untuk label/meta ringkas.
-   ========================================================================== */
+   R-06: Playfair Display memberi karakter editorial akademik pada judul; Archivo menjaga keterbacaan isi; Manrope untuk label/meta ringkas. */
 
 :root {
   /* Palet utama sesuai arah desain PRD (gradien langit biru ke putih bersih) */

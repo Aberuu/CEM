@@ -1,8 +1,6 @@
-/* ==========================================================================
-   LAYOUT.CSS — Garis grid vertikal, navbar pill, hamburger, hero, dan footer
+/* Layout: garis grid vertikal, navbar pill, hamburger, hero, dan footer.
    R-07: Empat garis grid vertikal (4.8%, 35.45%, 64.7%, 95.2%) menjadi penanda struktur kolom dari hero hingga footer.
-   R-10: Efek blur (backdrop-filter) dibatasi hanya pada 2 elemen navigasi (.brand-mark dan .nav-desktop) sebagai aksen di atas langit biru.
-   ========================================================================== */
+   R-10: Efek blur (backdrop-filter) dibatasi hanya pada 2 elemen navigasi (.brand-mark dan .nav-desktop) sebagai aksen di atas langit biru. */
 
 /* Empat garis grid vertikal 1px di latar belakang (4.8%, 35.45%, 64.7%, 95.2%) */
 .grid-lines {
@@ -330,17 +328,32 @@ body:has(#lang-en:checked) .lang-switch label[for='lang-en'] {
   max-width: 48ch;
 }
 
-/* Grid kartu event */
+/* Grid kartu event dengan lebar kolom sama agar tepi bawah foto sejajar */
 .event-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: clamp(16px, 2.5vw, 28px);
 }
 
-@media (min-width: 861px) {
-  .featured-snap {
-    grid-template-columns: 1.15fr 1fr 1fr;
-  }
+/* Daftar kategori event 5 kolom di desktop */
+.category-strip {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 16px;
+}
+
+/* Alur pendaftaran 4 langkah horizontal */
+.flow-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+/* Galeri dokumentasi 3 kolom sejajar */
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(16px, 2.5vw, 28px);
 }
 
 /* Bagian ajakan (CTA) di bawah */
@@ -458,10 +471,21 @@ body:has(#lang-en:checked) .lang-switch label[for='lang-en'] {
   .event-grid:not(.featured-snap) {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .category-strip,
+  .flow-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .gallery-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 580px) {
-  .event-grid:not(.featured-snap) {
+  .event-grid:not(.featured-snap),
+  .category-strip,
+  .flow-grid {
     grid-template-columns: 1fr;
   }
 

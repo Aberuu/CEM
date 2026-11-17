@@ -1,6 +1,4 @@
-/* ==========================================================================
-   COMPONENTS.CSS — Kartu event (rasio 0.79), lencana, tombol, filter :has(), kalender
-   ========================================================================== */
+/* Components: kartu event (rasio 0.79), lencana, tombol, filter :has(), kalender, dan formulir. */
 
 /* Tombol utama & sekunder (minimal tap target 44px) */
 .btn {
@@ -428,6 +426,96 @@
   .member-grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* Kartu kategori ringkas untuk navigasi cepat ke events.html */
+.category-item {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 44px;
+  padding: 20px;
+  border-radius: var(--radius-card);
+  background-color: var(--surface-card);
+  border: 1px solid var(--border-dark);
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.category-item:hover {
+  transform: translateY(-2px);
+  border-color: var(--blue-primary);
+}
+
+.category-item__title {
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  font-weight: 500;
+  color: var(--ink-dark);
+}
+
+.category-item__desc {
+  font-family: var(--font-caption);
+  font-size: 0.875rem;
+  color: var(--ink-muted);
+}
+
+/* Langkah alur pendaftaran 4 tahap */
+.flow-step {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 20px;
+  border-radius: var(--radius-card);
+  background-color: var(--surface-card);
+  border: 1px solid var(--border-dark);
+}
+
+.flow-step__num {
+  font-family: var(--font-caption);
+  font-size: 0.85rem;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--blue-primary);
+}
+
+@media (prefers-color-scheme: dark) {
+  .flow-step__num {
+    color: #9dc0ff;
+  }
+}
+
+.flow-step__title {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 500;
+  color: var(--ink-dark);
+}
+
+.flow-step__desc {
+  font-family: var(--font-caption);
+  font-size: 0.875rem;
+  color: var(--ink-muted);
+}
+
+/* Bingkai galeri dokumentasi sejajar tanpa caption teks */
+.gallery-frame {
+  border-radius: var(--radius-card);
+  overflow: hidden;
+  border: 1px solid var(--border-dark);
+  background-color: var(--blue-soft);
+  aspect-ratio: 4 / 3;
+}
+
+.gallery-frame img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.35s ease;
+}
+
+.gallery-frame:hover img {
+  transform: scale(1.03);
 }
 
 .info-dl {

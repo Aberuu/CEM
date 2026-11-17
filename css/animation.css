@@ -1,6 +1,4 @@
-/* ==========================================================================
-   ANIMATION.CSS — Keyframes CSS murni sesuai spesifikasi PRD
-   ========================================================================== */
+/* Animations: keyframes CSS murni untuk garis grid, navbar, judul, hero, dan kartu. */
 
 /* Garis grid vertikal tumbuh dari atas (1.6 detik) */
 @keyframes gridGrow {
