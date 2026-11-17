@@ -54,9 +54,9 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 14px;
+  padding: 8px 16px;
   min-height: 44px;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-btn);
   background: rgba(13, 35, 98, 0.42);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
@@ -91,9 +91,9 @@
 .nav-link {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   min-height: 44px;
-  padding: 10px 18px;
+  padding: 8px 16px;
   border-radius: var(--radius-pill);
   color: var(--ink-light);
   font-size: 0.875rem;
@@ -121,12 +121,12 @@
   gap: 10px;
 }
 
-/* Pengalih bahasa BA / EN berbentuk pill */
+/* Pengalih bahasa BA / EN dengan radius kontrol */
 .lang-switch {
   display: inline-flex;
   align-items: center;
   padding: 4px;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-btn);
   background: rgba(13, 35, 98, 0.42);
   border: 1px solid var(--border-light);
 }
@@ -135,10 +135,10 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 44px;
+  min-width: 40px;
   min-height: 36px;
-  padding: 0 10px;
-  border-radius: var(--radius-pill);
+  padding: 0 8px;
+  border-radius: 6px;
   font-size: 0.8rem;
   font-weight: 500;
   color: var(--ink-light);
@@ -156,14 +156,14 @@ body:has(#lang-en:checked) .lang-switch label[for='lang-en'] {
   align-items: center;
   justify-content: center;
   min-height: 44px;
-  padding: 10px 18px;
-  border-radius: var(--radius-pill);
+  padding: 8px 16px;
+  border-radius: var(--radius-btn);
   border: 1px solid rgba(255, 255, 255, 0.72);
   background: rgba(13, 35, 98, 0.38);
   color: var(--ink-light);
   font-size: 0.875rem;
   font-weight: 500;
-  transition: background-color 0.2s ease, transform 0.15s ease;
+  transition: background-color 0.2s ease, color 0.2s ease, transform 0.15s ease;
 }
 
 .btn-portal:hover {
@@ -334,7 +334,13 @@ body:has(#lang-en:checked) .lang-switch label[for='lang-en'] {
 .event-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: clamp(18px, 2.5vw, 28px);
+  gap: clamp(16px, 2.5vw, 28px);
+}
+
+@media (min-width: 861px) {
+  .featured-snap {
+    grid-template-columns: 1.15fr 1fr 1fr;
+  }
 }
 
 /* Bagian ajakan (CTA) di bawah */

@@ -47,10 +47,10 @@
   --font-sans: 'Archivo', system-ui, -apple-system, sans-serif;
   --font-caption: 'Manrope', system-ui, -apple-system, sans-serif;
 
-  /* Skala radius terstruktur */
+  /* Skala radius terstruktur (nested radius) */
   --radius-pill: 999px;
-  --radius-card: 14px;
-  --radius-btn: 10px;
+  --radius-card: 16px;
+  --radius-btn: 8px;
   --radius-badge: 6px;
 
   /* Tata letak */
