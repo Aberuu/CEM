@@ -157,9 +157,8 @@ window.PortalKampus = window.PortalKampus || {};
         message: hasActiveFilter
           ? (lang === 'en' ? 'Try another keyword or clear the active category filter.' : 'Coba kata kunci lain atau kembalikan semua kategori.')
           : (lang === 'en' ? 'No events have been added yet.' : 'Belum ada event yang tercatat di kalender.'),
-        actionLabel: hasActiveFilter ? ui.t('resetFilter') : ui.t('addEventPrompt'),
-        onAction: hasActiveFilter ? resetAllFilters : null,
-        actionHref: hasActiveFilter ? '' : 'admin.html'
+        actionLabel: hasActiveFilter ? ui.t('resetFilter') : '',
+        onAction: hasActiveFilter ? resetAllFilters : null
       });
       return;
     }

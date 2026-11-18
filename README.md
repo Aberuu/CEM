@@ -12,7 +12,7 @@ Tugas PTI: Pembuatan Web, Kelompok **Kerupuk Basah - 3**
 - **HTML5, CSS3, & Vanilla JavaScript** (tanpa framework, tanpa bundler, siap jalan di `file://` maupun GitHub Pages)
 - Integrasi **Google Calendar API v3** (pembacaan publik via API Key + Create/Edit/Delete langsung di Admin via Google OAuth 2.0) dengan fallback otomatis ke data lokal
 - Google Fonts: `Playfair Display`, `Archivo`, `Manrope`
-- Logo Grid Kalender Minimalis & ikon SVG (`assets/img/logo-event-kampus.svg`, `assets/img/favicon.svg`)
+- Logo Matriks Kalender Editorial (`assets/img/logo-event-kampus.svg`, `assets/img/favicon.svg`)
 
 ## Struktur Halaman
 - `index.html` : Beranda, hero, 3 event unggulan dinamis, daftar kategori, dan ajakan kalender

@@ -30,6 +30,49 @@ window.PortalKampus = window.PortalKampus || {};
     return '';
   }
 
+  function extractGoogleDriveFileId(rawUrl) {
+    var safeUrl = sanitizeUrl(rawUrl);
+    if (!safeUrl || !/^https?:/i.test(safeUrl)) {
+      return '';
+    }
+    try {
+      var parsed = new URL(safeUrl);
+      var host = parsed.hostname.toLowerCase();
+      if (host !== 'drive.google.com' && host !== 'docs.google.com') {
+        return '';
+      }
+      var pathMatch = parsed.pathname.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+      if (pathMatch && pathMatch[1]) {
+        return pathMatch[1];
+      }
+      var queryId = parsed.searchParams.get('id');
+      if (queryId && /^[a-zA-Z0-9_-]{10,}$/.test(queryId)) {
+        return queryId;
+      }
+      return '';
+    } catch (err) {
+      return '';
+    }
+  }
+
+  function isGoogleDriveUrl(rawUrl) {
+    var safeUrl = sanitizeUrl(rawUrl);
+    return Boolean(extractGoogleDriveFileId(safeUrl) || /^https:\/\/lh3\.googleusercontent\.com\/d\//i.test(safeUrl));
+  }
+
+  // Konversi link share Google Drive menjadi URL thumbnail langsung agar bisa dimuat di elemen <img>.
+  function normalizePosterUrl(rawUrl) {
+    var safeUrl = sanitizeUrl(rawUrl);
+    if (!safeUrl) {
+      return '';
+    }
+    var driveId = extractGoogleDriveFileId(safeUrl);
+    if (driveId) {
+      return 'https://drive.google.com/thumbnail?id=' + encodeURIComponent(driveId) + '&sz=w1200';
+    }
+    return safeUrl;
+  }
+
   // Google Calendar terkadang membungkus deskripsi dengan tag HTML (<br>, <p>, <a>).
   function stripHtmlTags(rawText) {
     var text = String(rawText || '');
@@ -106,7 +149,7 @@ window.PortalKampus = window.PortalKampus || {};
         } else if (key === 'status') {
           tags.status = value;
         } else if (key === 'poster') {
-          tags.poster = sanitizeUrl(value);
+          tags.poster = normalizePosterUrl(value);
         } else if (key === 'daftar' || key === 'register') {
           tags.daftar = sanitizeUrl(value);
         } else if (key === 'biaya' || key === 'fee') {
@@ -250,13 +293,29 @@ window.PortalKampus = window.PortalKampus || {};
     return fullDate + ' · ' + fmt.format(start) + ' - ' + fmt.format(end) + ' WIB';
   }
 
+  function findImageAttachmentPoster(attachments) {
+    if (!Array.isArray(attachments)) {
+      return '';
+    }
+    for (var i = 0; i < attachments.length; i++) {
+      var att = attachments[i];
+      if (att && String(att.mimeType || '').indexOf('image/') === 0 && att.fileUrl) {
+        var normalized = normalizePosterUrl(att.fileUrl);
+        if (normalized) {
+          return normalized;
+        }
+      }
+    }
+    return '';
+  }
+
   function normalizeEventObject(raw) {
     var catMeta = getCategoryMeta(raw.category);
     var status = resolveEventStatus(raw.status, raw.startIso, raw.endIso);
     var copy = Object.assign({}, raw, {
       category: catMeta.id,
       status: status,
-      poster: raw.poster || catMeta.defaultPoster,
+      poster: normalizePosterUrl(raw.poster) || catMeta.defaultPoster,
       posterAlt: raw.posterAlt || (raw.title ? 'Poster ' + raw.title : catMeta.defaultPosterAlt),
       dateKey: toLocalDateKey(raw.startIso)
     });
@@ -274,6 +333,7 @@ window.PortalKampus = window.PortalKampus || {};
     var parsed = parseDescriptionTags(item.description || '');
     var tags = parsed.tags;
     var catMeta = getCategoryMeta(tags.kategori);
+    var explicitPoster = tags.poster || findImageAttachmentPoster(item.attachments);
 
     return normalizeEventObject({
       id: item.id,
@@ -288,8 +348,8 @@ window.PortalKampus = window.PortalKampus || {};
       description: parsed.description || 'Agenda resmi dari Google Calendar Portal Event Kampus.',
       descriptionEn: parsed.description || 'Official event imported from Campus Google Calendar.',
       rawDescription: parsed.description,
-      poster: tags.poster || catMeta.defaultPoster,
-      explicitPoster: tags.poster,
+      poster: explicitPoster || catMeta.defaultPoster,
+      explicitPoster: explicitPoster,
       posterAlt: (item.summary || 'Event Kampus') + ' poster',
       fee: tags.biaya || CONFIG.defaultFee.id,
       explicitFee: tags.biaya,
@@ -315,11 +375,271 @@ window.PortalKampus = window.PortalKampus || {};
     );
   }
 
+  var DEFAULT_SESSION_MINUTES = 30;
+  var TOKEN_SAFETY_BUFFER_MS = 15000;
+
   var authState = {
     accessToken: '',
     expiresAt: 0,
+    loggedInAt: 0,
     tokenClient: null
   };
+
+  var pinSessionState = {
+    verified: false,
+    pinHash: '',
+    expiresAt: 0,
+    loggedInAt: 0
+  };
+
+  function getSessionMinutes() {
+    var gc = CONFIG.googleCalendar || {};
+    var minutes = Number(gc.oauthSessionMinutes || DEFAULT_SESSION_MINUTES);
+    return Number.isFinite(minutes) && minutes > 0 ? minutes : DEFAULT_SESSION_MINUTES;
+  }
+
+  function getPinSessionMinutes() {
+    var aa = CONFIG.adminAuth || {};
+    var minutes = Number(aa.sessionMinutes || DEFAULT_SESSION_MINUTES);
+    return Number.isFinite(minutes) && minutes > 0 ? minutes : DEFAULT_SESSION_MINUTES;
+  }
+
+  function getConfiguredPinHash() {
+    var aa = CONFIG.adminAuth || {};
+    return String(aa.pinHash || '').trim().toLowerCase();
+  }
+
+  function isAdminPinConfigured() {
+    return /^[a-f0-9]{64}$/.test(getConfiguredPinHash());
+  }
+
+  function getAdminSessionKey() {
+    return (CONFIG.storageKeys && CONFIG.storageKeys.adminSession) || 'portal_kampus_admin_session_v1';
+  }
+
+  function getAdminPinSessionKey() {
+    return (CONFIG.storageKeys && CONFIG.storageKeys.adminPinSession) || 'portal_kampus_admin_pin_session_v1';
+  }
+
+  function writeLocalJson(key, value) {
+    try {
+      window.localStorage.setItem(key, JSON.stringify(value));
+    } catch (err) {
+      // Abaikan jika localStorage dibatasi browser.
+    }
+  }
+
+  function readLocalJson(key) {
+    try {
+      var raw = window.localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : null;
+    } catch (err) {
+      return null;
+    }
+  }
+
+  function removeLocalKey(key) {
+    try {
+      window.localStorage.removeItem(key);
+    } catch (err) {
+      // Abaikan jika localStorage dibatasi browser.
+    }
+  }
+
+  function clearPersistedAdminSession() {
+    removeLocalKey(getAdminSessionKey());
+  }
+
+  function persistAdminSession() {
+    writeLocalJson(getAdminSessionKey(), {
+      accessToken: authState.accessToken,
+      expiresAt: authState.expiresAt,
+      loggedInAt: authState.loggedInAt
+    });
+  }
+
+  function resetAuthStateMemory() {
+    authState.accessToken = '';
+    authState.expiresAt = 0;
+    authState.loggedInAt = 0;
+  }
+
+  function loadAdminSession() {
+    var parsed = readLocalJson(getAdminSessionKey());
+    var token = parsed && typeof parsed.accessToken === 'string' ? parsed.accessToken : '';
+    var expiresAt = Number(parsed && parsed.expiresAt);
+    if (!token || !Number.isFinite(expiresAt) || Date.now() >= expiresAt) {
+      resetAuthStateMemory();
+      clearPersistedAdminSession();
+      return;
+    }
+    authState.accessToken = token;
+    authState.expiresAt = expiresAt;
+    authState.loggedInAt = Number(parsed && parsed.loggedInAt) || 0;
+  }
+
+  function resetPinSessionMemory() {
+    pinSessionState.verified = false;
+    pinSessionState.pinHash = '';
+    pinSessionState.expiresAt = 0;
+    pinSessionState.loggedInAt = 0;
+  }
+
+  function loadAdminPinSession() {
+    var expectedHash = getConfiguredPinHash();
+    var parsed = readLocalJson(getAdminPinSessionKey());
+    var expiresAt = Number(parsed && parsed.expiresAt);
+    var storedHash = parsed && typeof parsed.pinHash === 'string' ? parsed.pinHash : '';
+    if (
+      !parsed ||
+      !parsed.verified ||
+      !expectedHash ||
+      storedHash !== expectedHash ||
+      !Number.isFinite(expiresAt) ||
+      Date.now() >= expiresAt
+    ) {
+      resetPinSessionMemory();
+      removeLocalKey(getAdminPinSessionKey());
+      return;
+    }
+    pinSessionState.verified = true;
+    pinSessionState.pinHash = storedHash;
+    pinSessionState.expiresAt = expiresAt;
+    pinSessionState.loggedInAt = Number(parsed.loggedInAt) || 0;
+  }
+
+  function hasValidAdminPinSession() {
+    if (!pinSessionState.verified) {
+      return false;
+    }
+    if (Date.now() >= pinSessionState.expiresAt || pinSessionState.pinHash !== getConfiguredPinHash()) {
+      resetPinSessionMemory();
+      removeLocalKey(getAdminPinSessionKey());
+      return false;
+    }
+    return true;
+  }
+
+  function getAdminPinStatus() {
+    var unlocked = hasValidAdminPinSession();
+    return {
+      configured: isAdminPinConfigured(),
+      unlocked: unlocked,
+      expiresAt: unlocked ? pinSessionState.expiresAt : 0,
+      loggedInAt: unlocked ? pinSessionState.loggedInAt : 0,
+      remainingMs: unlocked ? Math.max(0, pinSessionState.expiresAt - Date.now()) : 0,
+      sessionMinutes: getPinSessionMinutes()
+    };
+  }
+
+  function sha256FallbackHex(text) {
+    var utf8 = unescape(encodeURIComponent(String(text || '')));
+    var bytes = [];
+    for (var i = 0; i < utf8.length; i++) {
+      bytes.push(utf8.charCodeAt(i));
+    }
+    var k = [
+      0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+      0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+      0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+      0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+      0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+      0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+      0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+      0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
+    ];
+    var h = [
+      0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
+      0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19
+    ];
+    var bitLen = bytes.length * 8;
+    bytes.push(0x80);
+    while ((bytes.length % 64) !== 56) {
+      bytes.push(0);
+    }
+    for (var hi = 3; hi >= 0; hi--) {
+      bytes.push((Math.floor(bitLen / 0x100000000) >>> (hi * 8)) & 0xff);
+    }
+    for (var lo = 3; lo >= 0; lo--) {
+      bytes.push((bitLen >>> (lo * 8)) & 0xff);
+    }
+    function rotr(x, n) { return (x >>> n) | (x << (32 - n)); }
+    var w = new Array(64);
+    for (var offset = 0; offset < bytes.length; offset += 64) {
+      for (var t = 0; t < 16; t++) {
+        w[t] = (bytes[offset + t * 4] << 24) | (bytes[offset + t * 4 + 1] << 16) |
+          (bytes[offset + t * 4 + 2] << 8) | bytes[offset + t * 4 + 3];
+      }
+      for (t = 16; t < 64; t++) {
+        var s0 = rotr(w[t - 15], 7) ^ rotr(w[t - 15], 18) ^ (w[t - 15] >>> 3);
+        var s1 = rotr(w[t - 2], 17) ^ rotr(w[t - 2], 19) ^ (w[t - 2] >>> 10);
+        w[t] = (w[t - 16] + s0 + w[t - 7] + s1) | 0;
+      }
+      var a = h[0], b = h[1], c = h[2], d = h[3], e = h[4], f = h[5], g = h[6], hh = h[7];
+      for (t = 0; t < 64; t++) {
+        var S1 = rotr(e, 6) ^ rotr(e, 11) ^ rotr(e, 25);
+        var ch = (e & f) ^ (~e & g);
+        var temp1 = (hh + S1 + ch + k[t] + w[t]) | 0;
+        var S0 = rotr(a, 2) ^ rotr(a, 13) ^ rotr(a, 22);
+        var maj = (a & b) ^ (a & c) ^ (b & c);
+        var temp2 = (S0 + maj) | 0;
+        hh = g; g = f; f = e; e = (d + temp1) | 0;
+        d = c; c = b; b = a; a = (temp1 + temp2) | 0;
+      }
+      h[0] = (h[0] + a) | 0; h[1] = (h[1] + b) | 0; h[2] = (h[2] + c) | 0; h[3] = (h[3] + d) | 0;
+      h[4] = (h[4] + e) | 0; h[5] = (h[5] + f) | 0; h[6] = (h[6] + g) | 0; h[7] = (h[7] + hh) | 0;
+    }
+    return h.map(function (val) { return (val >>> 0).toString(16).padStart(8, '0'); }).join('');
+  }
+
+  async function sha256Hex(text) {
+    if (window.crypto && window.crypto.subtle && typeof TextEncoder !== 'undefined') {
+      var data = new TextEncoder().encode(String(text || ''));
+      var hashBuffer = await window.crypto.subtle.digest('SHA-256', data);
+      var bytes = Array.prototype.slice.call(new Uint8Array(hashBuffer));
+      return bytes.map(function (b) { return b.toString(16).padStart(2, '0'); }).join('');
+    }
+    return sha256FallbackHex(text);
+  }
+
+  async function verifyAdminPin(rawPin) {
+    if (!isAdminPinConfigured()) {
+      return { ok: false, error: 'PIN Admin belum dikonfigurasi pada Env Var ADMIN_PIN atau js/config.js.' };
+    }
+    var trimmed = String(rawPin || '').trim();
+    if (!trimmed) {
+      return { ok: false, error: 'Masukkan PIN Admin terlebih dahulu.' };
+    }
+    var inputHash = await sha256Hex(trimmed);
+    var expectedHash = getConfiguredPinHash();
+    var diff = inputHash.length ^ expectedHash.length;
+    for (var i = 0; i < inputHash.length && i < expectedHash.length; i++) {
+      diff |= inputHash.charCodeAt(i) ^ expectedHash.charCodeAt(i);
+    }
+    if (diff !== 0) {
+      return { ok: false, error: 'PIN Admin tidak sesuai.' };
+    }
+    var now = Date.now();
+    pinSessionState.verified = true;
+    pinSessionState.pinHash = expectedHash;
+    pinSessionState.loggedInAt = now;
+    pinSessionState.expiresAt = now + getPinSessionMinutes() * 60 * 1000;
+    writeLocalJson(getAdminPinSessionKey(), {
+      verified: true,
+      pinHash: expectedHash,
+      loggedInAt: pinSessionState.loggedInAt,
+      expiresAt: pinSessionState.expiresAt
+    });
+    return { ok: true, status: getAdminPinStatus() };
+  }
+
+  function lockAdminPanel() {
+    resetPinSessionMemory();
+    removeLocalKey(getAdminPinSessionKey());
+  }
+
+  loadAdminSession();
+  loadAdminPinSession();
 
   function isOAuthConfigured() {
     var gc = CONFIG.googleCalendar || {};
@@ -333,15 +653,27 @@ window.PortalKampus = window.PortalKampus || {};
   }
 
   function hasValidAdminToken() {
-    return Boolean(authState.accessToken && Date.now() < authState.expiresAt - 15000);
+    if (!authState.accessToken) {
+      return false;
+    }
+    if (Date.now() >= authState.expiresAt) {
+      resetAuthStateMemory();
+      clearPersistedAdminSession();
+      return false;
+    }
+    return true;
   }
 
   function getAdminAuthStatus() {
+    var signedIn = hasValidAdminToken();
     return {
       configured: isOAuthConfigured(),
       protocolSupported: canUseOAuthProtocol(),
-      signedIn: hasValidAdminToken(),
-      expiresAt: authState.expiresAt
+      signedIn: signedIn,
+      expiresAt: signedIn ? authState.expiresAt : 0,
+      loggedInAt: signedIn ? authState.loggedInAt : 0,
+      remainingMs: signedIn ? Math.max(0, authState.expiresAt - Date.now()) : 0,
+      sessionMinutes: getSessionMinutes()
     };
   }
 
@@ -395,9 +727,15 @@ window.PortalKampus = window.PortalKampus || {};
             return;
           }
           settled = true;
-          var ttlSeconds = Number(resp.expires_in) || 3500;
+          // Batasi sesi lokal maksimal 30 menit setiap login agar tetap aman di localStorage.
+          var maxSessionMs = getSessionMinutes() * 60 * 1000;
+          var googleTtlMs = Math.max(0, (Number(resp.expires_in) || 3500) * 1000 - TOKEN_SAFETY_BUFFER_MS);
+          var effectiveTtlMs = Math.min(maxSessionMs, googleTtlMs || maxSessionMs);
+          var now = Date.now();
           authState.accessToken = resp.access_token;
-          authState.expiresAt = Date.now() + ttlSeconds * 1000;
+          authState.loggedInAt = now;
+          authState.expiresAt = now + effectiveTtlMs;
+          persistAdminSession();
           resolve(getAdminAuthStatus());
         },
         error_callback: function (err) {
@@ -415,8 +753,8 @@ window.PortalKampus = window.PortalKampus || {};
 
   function signOutAdmin() {
     var token = authState.accessToken;
-    authState.accessToken = '';
-    authState.expiresAt = 0;
+    resetAuthStateMemory();
+    clearPersistedAdminSession();
     if (token && window.google && window.google.accounts && window.google.accounts.oauth2) {
       try {
         window.google.accounts.oauth2.revoke(token, function () {});
@@ -577,6 +915,11 @@ window.PortalKampus = window.PortalKampus || {};
 
     var response = await window.fetch(endpoint, fetchOptions);
     if (!response.ok) {
+      if (response.status === 401) {
+        resetAuthStateMemory();
+        clearPersistedAdminSession();
+        throw new Error('Sesi login Google sudah habis atau dicabut. Silakan login kembali.');
+      }
       var apiMsg = '';
       try {
         var errJson = await response.json();
@@ -674,6 +1017,8 @@ window.PortalKampus = window.PortalKampus || {};
   window.PortalKampus.calendarService = {
     escapeHtml: escapeHtml,
     sanitizeUrl: sanitizeUrl,
+    isGoogleDriveUrl: isGoogleDriveUrl,
+    normalizePosterUrl: normalizePosterUrl,
     getCategoryMeta: getCategoryMeta,
     parseDescriptionTags: parseDescriptionTags,
     formatDisplayDate: formatDisplayDate,
@@ -683,6 +1028,13 @@ window.PortalKampus = window.PortalKampus || {};
     isOAuthConfigured: isOAuthConfigured,
     canUseOAuthProtocol: canUseOAuthProtocol,
     getAdminAuthStatus: getAdminAuthStatus,
+    getAdminSessionKey: getAdminSessionKey,
+    reloadAdminSession: loadAdminSession,
+    getAdminPinStatus: getAdminPinStatus,
+    getAdminPinSessionKey: getAdminPinSessionKey,
+    reloadAdminPinSession: loadAdminPinSession,
+    verifyAdminPin: verifyAdminPin,
+    lockAdminPanel: lockAdminPanel,
     requestAdminToken: requestAdminToken,
     signOutAdmin: signOutAdmin,
     clearCache: clearCache,

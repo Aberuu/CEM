@@ -2,6 +2,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import crypto from 'node:crypto';
 
 const rootDir = process.cwd();
 const outDir = path.join(rootDir, 'dist');
@@ -58,10 +59,15 @@ if (!fs.existsSync(templatePath)) {
 
 // Bangun dist/js/config.js selalu dari template bersih agar kredensial lokal tidak ikut bocor jika env kosong.
 let configSource = fs.readFileSync(templatePath, 'utf8');
+const rawAdminPin = getEnv('ADMIN_PIN');
+const adminPinHash = rawAdminPin
+  ? crypto.createHash('sha256').update(rawAdminPin, 'utf8').digest('hex')
+  : '';
 const replacements = {
   calendarId: getEnv('GCAL_CALENDAR_ID'),
   apiKey: getEnv('GCAL_API_KEY'),
-  oauthClientId: getEnv('GCAL_OAUTH_CLIENT_ID')
+  oauthClientId: getEnv('GCAL_OAUTH_CLIENT_ID'),
+  pinHash: adminPinHash
 };
 
 for (const [field, value] of Object.entries(replacements)) {

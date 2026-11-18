@@ -93,16 +93,16 @@ window.PortalKampus = window.PortalKampus || {};
 
     var dayEvents = eventsByDate[state.selectedDateKey] || [];
     if (dayEvents.length === 0) {
+      var actionMarkup = state.view !== 'timeline'
+        ? '<div class="agenda-item__actions">' +
+            '<button type="button" class="btn btn-outline btn-compact" data-open-timeline="1">' + (lang === 'en' ? 'Open Day Timeline' : 'Lihat Timeline Jam') + '</button>' +
+          '</div>'
+        : '';
       el.agendaPanel.innerHTML =
         '<div class="agenda-panel__empty">' +
           '<h3>' + svc.escapeHtml(dateHeading) + '</h3>' +
           '<p>' + svc.escapeHtml(ui.t('noEventsOnDate')) + '</p>' +
-          '<div class="agenda-item__actions">' +
-            '<a class="btn btn-outline btn-compact" href="admin.html">' + svc.escapeHtml(ui.t('addEventPrompt')) + '</a>' +
-            (state.view !== 'timeline'
-              ? '<button type="button" class="btn btn-outline btn-compact" data-open-timeline="1">' + (lang === 'en' ? 'Open Day Timeline' : 'Lihat Timeline Jam') + '</button>'
-              : '') +
-          '</div>' +
+          actionMarkup +
         '</div>';
       return;
     }
@@ -231,7 +231,7 @@ window.PortalKampus = window.PortalKampus || {};
           : '',
         actionLabel: nearest
           ? (lang === 'en' ? 'Jump to Nearest Event' : 'Ke Bulan Jadwal Terdekat')
-          : ui.t('addEventPrompt'),
+          : '',
         onAction: nearest
           ? function () {
               var d = new Date(nearest.startIso);
@@ -240,8 +240,7 @@ window.PortalKampus = window.PortalKampus || {};
               state.selectedDateKey = nearest.dateKey;
               renderCalendarPage();
             }
-          : null,
-        actionHref: nearest ? '' : 'admin.html'
+          : null
       });
       return;
     }
@@ -334,23 +333,6 @@ window.PortalKampus = window.PortalKampus || {};
     });
   }
 
-  function updateSubscribeLink() {
-    if (!el.subscribeBtn) {
-      return;
-    }
-    var lang = ui.getCurrentLang();
-    if (svc.isGoogleConfigured()) {
-      el.subscribeBtn.href = ics.buildGoogleCalendarSubscribeUrl(CONFIG.googleCalendar.calendarId);
-      el.subscribeBtn.target = '_blank';
-      el.subscribeBtn.rel = 'noopener';
-      el.subscribeBtn.textContent = lang === 'en' ? 'Subscribe Google Calendar' : 'Langganan Google Calendar';
-    } else {
-      el.subscribeBtn.href = 'admin.html#setup-gcal';
-      el.subscribeBtn.removeAttribute('target');
-      el.subscribeBtn.textContent = lang === 'en' ? 'Connect Google Calendar' : 'Hubungkan Google Calendar';
-    }
-  }
-
   function syncViewButtons() {
     var mapping = [
       { btn: el.viewGridBtn, key: 'grid' },
@@ -384,7 +366,6 @@ window.PortalKampus = window.PortalKampus || {};
     }
 
     syncViewButtons();
-    updateSubscribeLink();
     ui.renderSourceNotice(el.notice, state.payload.source, state.payload.errorMessage, function () {
       loadCalendarEvents(true);
     });
@@ -433,7 +414,6 @@ window.PortalKampus = window.PortalKampus || {};
     el.viewGridBtn = document.getElementById('cal-view-grid');
     el.viewTimelineBtn = document.getElementById('cal-view-timeline');
     el.viewListBtn = document.getElementById('cal-view-list');
-    el.subscribeBtn = document.getElementById('cal-subscribe-btn');
 
     if (!el.calendarMount) {
       return;

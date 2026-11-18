@@ -10,9 +10,16 @@ window.PortalKampus.CONFIG = {
     calendarId: '',
     apiKey: '',
     oauthClientId: '',
+    oauthSessionMinutes: 30,
     timeZone: 'Asia/Jakarta',
     maxResults: 100,
     cacheMinutes: 5
+  },
+
+  // Kredensial gerbang panel admin (hash SHA-256 diisi otomatis dari Env Var ADMIN_PIN saat build Vercel).
+  adminAuth: {
+    pinHash: '',
+    sessionMinutes: 30
   },
 
   // Pengaturan rentang jam dan grid drag untuk Timeline Minggu/Hari (dipakai di calendar.html dan admin.html).
@@ -70,16 +77,26 @@ window.PortalKampus.CONFIG = {
     }
   ],
 
-  // Pilihan poster siap pakai yang muncul di halaman Admin (admin.html) agar panitia tidak perlu mengunggah file baru.
+  // Pilihan foto & poster siap pakai pada galeri visual Admin (diambil dari folder assets/img/).
   presetPosters: [
     { label: 'Poster Seminar AI (FTI)', path: 'assets/img/fti-seminar-poster.png' },
-    { label: 'Foto Ruang Seminar', path: 'assets/img/fti-event-720.jpg' },
-    { label: 'Foto Hackathon & Lab', path: 'assets/img/fti-workshop-ai-720.jpg' },
-    { label: 'Foto Workshop Studio', path: 'assets/img/fti-event.jpeg' },
-    { label: 'Foto Kegiatan Almamater / Seni', path: 'assets/img/fti-almamater-720.jpg' },
-    { label: 'Foto Aktivitas UKM', path: 'assets/img/fti-attention.jpg' },
+    { label: 'Ruang Seminar Utama', path: 'assets/img/fti-event-720.jpg' },
+    { label: 'Hackathon & Lab', path: 'assets/img/fti-workshop-ai-720.jpg' },
+    { label: 'Workshop Studio', path: 'assets/img/fti-event.jpeg' },
+    { label: 'Kegiatan Almamater & Seni', path: 'assets/img/fti-almamater-720.jpg' },
+    { label: 'Aktivitas UKM', path: 'assets/img/fti-attention.jpg' },
     { label: 'Banner Kuliah Umum', path: 'assets/img/fti-sikp.png' },
-    { label: 'Foto Gedung Kampus', path: 'assets/img/fti-campus-640.jpg' }
+    { label: 'Gedung Kampus Utama', path: 'assets/img/fti-campus-1280.jpg' },
+    { label: 'Halaman Gedung Kampus', path: 'assets/img/fti-campus-640.jpg' },
+    { label: 'Dokumentasi Mahasiswa 1', path: 'assets/img/ig-fti-1.jpg' },
+    { label: 'Dokumentasi Mahasiswa 2', path: 'assets/img/ig-fti-2.jpg' },
+    { label: 'Aula Kuliah Umum', path: 'assets/img/photo-f149049984-960.jpg' },
+    { label: 'Kolaborasi Workshop', path: 'assets/img/photo-f162011448-960.jpg' },
+    { label: 'Panggung Pentas Seni', path: 'assets/img/photo-f190017879-960.jpg' },
+    { label: 'Gedung Perkuliahan', path: 'assets/img/photo-f195725672-500.jpg' },
+    { label: 'Kampus Malam Hari', path: 'assets/img/photo-f198863015-960.jpg' },
+    { label: 'Plaza & Campus Hub', path: 'assets/img/photo-f199815252-1280.jpg' },
+    { label: 'Gedung Akademik', path: 'assets/img/photo-f63196043-960.jpg' }
   ],
 
   defaultContactEmail: 'panitia@eventkampus.example',
@@ -91,7 +108,9 @@ window.PortalKampus.CONFIG = {
   storageKeys: {
     lang: 'portal_kampus_lang',
     eventsCache: 'portal_kampus_gcal_cache_v1',
-    adminDrafts: 'portal_kampus_admin_drafts_v1'
+    adminDrafts: 'portal_kampus_admin_drafts_v1',
+    adminSession: 'portal_kampus_admin_session_v1',
+    adminPinSession: 'portal_kampus_admin_pin_session_v1'
   },
 
   // Kamus teks singkat untuk elemen yang dibuat oleh JavaScript agar tombol bahasa ID / EN tetap konsisten.

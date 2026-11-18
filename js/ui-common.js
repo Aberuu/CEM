@@ -202,14 +202,19 @@ window.PortalKampus = window.PortalKampus || {};
     if (!container) {
       return;
     }
+    // Sembunyikan banner status saat koneksi live Google Calendar berjalan normal.
+    if (source === 'google') {
+      container.innerHTML = '';
+      container.hidden = true;
+      return;
+    }
+    container.hidden = false;
+
     var lang = getCurrentLang();
     var text = '';
     var variant = 'info';
 
-    if (source === 'google') {
-      text = t('modeLive');
-      variant = 'live';
-    } else if (source === 'fallback-error') {
+    if (source === 'fallback-error') {
       text = t('modeError') + (errorMessage ? ' (' + errorMessage + ')' : '');
       variant = 'warn';
     } else {
@@ -217,21 +222,20 @@ window.PortalKampus = window.PortalKampus || {};
       variant = 'info';
     }
 
-    var adminHrefText = lang === 'en' ? 'Open Admin & Setup' : 'Buka Panduan Setup';
     var retryText = t('retry');
+    var hasRetry = typeof onRetry === 'function';
 
     container.innerHTML =
       '<div class="mode-banner mode-banner--' + variant + '" role="status" aria-live="polite">' +
         '<span>' + svc.escapeHtml(text) + '</span>' +
-        '<div class="mode-banner__actions">' +
-          (typeof onRetry === 'function'
-            ? '<button class="btn btn-outline btn-compact" type="button" data-action="retry">' + svc.escapeHtml(retryText) + '</button>'
-            : '') +
-          '<a class="btn btn-outline btn-compact" href="admin.html#setup-gcal">' + svc.escapeHtml(adminHrefText) + '</a>' +
-        '</div>' +
+        (hasRetry
+          ? '<div class="mode-banner__actions">' +
+              '<button class="btn btn-outline btn-compact" type="button" data-action="retry">' + svc.escapeHtml(retryText) + '</button>' +
+            '</div>'
+          : '') +
       '</div>';
 
-    if (typeof onRetry === 'function') {
+    if (hasRetry) {
       var retryBtn = container.querySelector('[data-action="retry"]');
       if (retryBtn) {
         retryBtn.addEventListener('click', onRetry);
@@ -239,9 +243,191 @@ window.PortalKampus = window.PortalKampus || {};
     }
   }
 
+  // Aktifkan interaksi tahan-logo 2 detik di header dengan indikator progress sepanjang border logo.
+  function setupLogoAdminHold() {
+    var brand = document.querySelector('.site-header .brand-mark');
+    if (!brand || brand.getAttribute('data-hold-init') === '1') {
+      return;
+    }
+    brand.setAttribute('data-hold-init', '1');
+
+    var svgNs = 'http://www.w3.org/2000/svg';
+    var ringSvg = document.createElementNS(svgNs, 'svg');
+    ringSvg.setAttribute('class', 'brand-hold-ring');
+    ringSvg.setAttribute('aria-hidden', 'true');
+
+    var trackRect = document.createElementNS(svgNs, 'rect');
+    trackRect.setAttribute('class', 'brand-hold-ring__track');
+    trackRect.setAttribute('pathLength', '100');
+
+    var progressRect = document.createElementNS(svgNs, 'rect');
+    progressRect.setAttribute('class', 'brand-hold-ring__progress');
+    progressRect.setAttribute('pathLength', '100');
+
+    ringSvg.appendChild(trackRect);
+    ringSvg.appendChild(progressRect);
+    brand.appendChild(ringSvg);
+
+    var HOLD_MS = 2000;
+    var SHORT_CLICK_LIMIT_MS = 380;
+    var MOVE_CANCEL_PX = 14;
+    var rafId = 0;
+    var startTime = 0;
+    var startX = 0;
+    var startY = 0;
+    var isHolding = false;
+    var suppressNextClick = false;
+    var activeKey = '';
+
+    function syncRingGeometry() {
+      var r = brand.getBoundingClientRect();
+      var w = Math.max(40, Math.round(r.width + 4));
+      var h = Math.max(40, Math.round(r.height + 4));
+      ringSvg.setAttribute('viewBox', '0 0 ' + w + ' ' + h);
+      [trackRect, progressRect].forEach(function (rect) {
+        rect.setAttribute('x', '1.5');
+        rect.setAttribute('y', '1.5');
+        rect.setAttribute('width', String(Math.max(10, w - 3)));
+        rect.setAttribute('height', String(Math.max(10, h - 3)));
+        rect.setAttribute('rx', '11');
+        rect.setAttribute('ry', '11');
+      });
+    }
+
+    function cancelHold(shouldSuppressClick) {
+      if (rafId) {
+        window.cancelAnimationFrame(rafId);
+        rafId = 0;
+      }
+      if (isHolding && shouldSuppressClick && performance.now() - startTime >= SHORT_CLICK_LIMIT_MS) {
+        suppressNextClick = true;
+      }
+      isHolding = false;
+      activeKey = '';
+      brand.classList.remove('is-holding');
+      progressRect.style.strokeDashoffset = '100';
+    }
+
+    function completeHold() {
+      if (rafId) {
+        window.cancelAnimationFrame(rafId);
+        rafId = 0;
+      }
+      isHolding = false;
+      activeKey = '';
+      suppressNextClick = true;
+      progressRect.style.strokeDashoffset = '0';
+      brand.classList.remove('is-holding');
+      brand.classList.add('is-hold-complete');
+      window.setTimeout(function () {
+        window.location.href = 'admin.html';
+      }, 90);
+    }
+
+    function tick(now) {
+      if (!isHolding) {
+        return;
+      }
+      var elapsed = now - startTime;
+      var ratio = Math.min(1, elapsed / HOLD_MS);
+      progressRect.style.strokeDashoffset = String(Math.max(0, 100 - ratio * 100));
+      if (ratio >= 1) {
+        completeHold();
+        return;
+      }
+      rafId = window.requestAnimationFrame(tick);
+    }
+
+    function beginHold(x, y) {
+      if (isHolding) {
+        return;
+      }
+      syncRingGeometry();
+      suppressNextClick = false;
+      isHolding = true;
+      startTime = performance.now();
+      startX = x;
+      startY = y;
+      progressRect.style.strokeDashoffset = '100';
+      brand.classList.remove('is-hold-complete');
+      brand.classList.add('is-holding');
+      rafId = window.requestAnimationFrame(tick);
+    }
+
+    brand.addEventListener('pointerdown', function (e) {
+      if (e.pointerType === 'mouse' && e.button !== 0) {
+        return;
+      }
+      beginHold(e.clientX, e.clientY);
+    });
+
+    brand.addEventListener('pointermove', function (e) {
+      if (!isHolding) {
+        return;
+      }
+      var dx = Math.abs(e.clientX - startX);
+      var dy = Math.abs(e.clientY - startY);
+      if (dx > MOVE_CANCEL_PX || dy > MOVE_CANCEL_PX) {
+        cancelHold(true);
+      }
+    });
+
+    brand.addEventListener('pointerup', function () {
+      cancelHold(true);
+    });
+    brand.addEventListener('pointercancel', function () {
+      cancelHold(true);
+    });
+    brand.addEventListener('pointerleave', function () {
+      cancelHold(true);
+    });
+
+    brand.addEventListener('keydown', function (e) {
+      if (e.repeat) {
+        return;
+      }
+      if (e.key === ' ' || e.key === 'Enter') {
+        if (e.key === ' ') {
+          e.preventDefault();
+        }
+        activeKey = e.key;
+        beginHold(0, 0);
+      }
+    });
+
+    brand.addEventListener('keyup', function (e) {
+      if (activeKey && e.key === activeKey) {
+        var wasSpace = e.key === ' ';
+        var heldShort = isHolding && performance.now() - startTime < SHORT_CLICK_LIMIT_MS;
+        cancelHold(true);
+        if (wasSpace && heldShort) {
+          brand.click();
+        }
+      }
+    });
+
+    brand.addEventListener('contextmenu', function (e) {
+      if (isHolding || suppressNextClick) {
+        e.preventDefault();
+      }
+    });
+
+    brand.addEventListener('click', function (e) {
+      if (suppressNextClick) {
+        suppressNextClick = false;
+        e.preventDefault();
+      }
+    });
+
+    window.addEventListener('blur', function () {
+      cancelHold(false);
+    });
+  }
+
   document.addEventListener('DOMContentLoaded', function () {
     applyStoredLanguage();
     setupMobileDrawerAccessibility();
+    setupLogoAdminHold();
   });
 
   window.PortalKampus.ui = {

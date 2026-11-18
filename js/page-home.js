@@ -40,9 +40,7 @@ window.PortalKampus = window.PortalKampus || {};
         title: ui.t('noEventsInMonth'),
         message: lang === 'en'
           ? 'No campus events are currently available in the schedule.'
-          : 'Belum ada jadwal event kampus yang tersedia saat ini.',
-        actionLabel: ui.t('addEventPrompt'),
-        actionHref: 'admin.html'
+          : 'Belum ada jadwal event kampus yang tersedia saat ini.'
       });
       return;
     }

@@ -48,33 +48,104 @@
 }
 
 .brand-mark {
+  position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
+  gap: 10px;
+  padding: 6px 14px 6px 7px;
   min-height: 44px;
-  border-radius: var(--radius-btn);
-  background: rgba(13, 35, 98, 0.56);
-  border: 1px solid var(--border-light);
+  border-radius: 10px;
+  background: rgb(35 59 129);
+  border: 1px solid rgba(255, 255, 255, 0.3);
   color: var(--ink-light);
-  font-weight: 500;
-  font-size: clamp(0.78rem, 2.2vw, 0.95rem);
-  letter-spacing: 0.02em;
   white-space: nowrap;
   flex-shrink: 0;
-  transition: background-color 0.2s ease, color 0.2s ease, transform 0.15s ease;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
 }
 
 .brand-mark:hover {
-  background-color: rgba(255, 255, 255, 0.18);
-  transition: background-color 0.2s ease, color 0.2s ease, transform 0.15s ease;
+  background-color: rgba(11, 30, 84, 0.92);
+  border-color: rgba(255, 255, 255, 0.56);
 }
 
-.brand-mark svg {
-  width: 22px;
-  height: 22px;
+/* Indikator loading border saat logo ditahan untuk masuk panel admin */
+.brand-hold-ring {
+  position: absolute;
+  inset: -2px;
+  width: calc(100% + 4px);
+  height: calc(100% + 4px);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.14s ease;
+}
+
+.brand-mark.is-holding .brand-hold-ring,
+.brand-mark.is-hold-complete .brand-hold-ring {
+  opacity: 1;
+}
+
+.brand-mark.is-holding {
+  background-color: rgba(11, 30, 84, 0.96);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.brand-mark.is-hold-complete {
+  background-color: rgba(17, 80, 239, 0.96);
+}
+
+.brand-hold-ring__track {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.26);
+  stroke-width: 2.5px;
+}
+
+.brand-hold-ring__progress {
+  fill: none;
+  stroke: #ffffff;
+  stroke-width: 2.5px;
+  stroke-linecap: round;
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;
+}
+
+.brand-mark__icon {
+  width: 28px;
+  height: 28px;
   flex-shrink: 0;
 }
+
+.brand-mark__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+}
+
+.brand-mark__title {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: clamp(0.95rem, 1.9vw, 1.1rem);
+  line-height: 1.04;
+  letter-spacing: -0.01em;
+}
+
+.brand-mark__sub {
+  font-family: var(--font-caption);
+  font-weight: 500;
+  font-size: 0.64rem;
+  line-height: 1.1;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #dce7ff;
+}
+
+/* Di navbar, ubin logo memakai putih editorial agar kontras terhadap pil biru tua. */
+.brand-mark .brand-tile { fill: #ffffff; }
+.brand-mark .brand-sq { fill: #0b2466; }
+.brand-mark .brand-sq-accent { fill: #1150ef; }
 
 /* Grup pill navbar desktop */
 .nav-desktop {
@@ -126,15 +197,11 @@
 .lang-switch {
   display: inline-flex;
   align-items: center;
+  gap: 4px;
   padding: 4px;
   border-radius: var(--radius-btn);
   background: rgba(13, 35, 98, 0.42);
   border: 1px solid var(--border-light);
-}
-
-.lang-switch span :hover   {
-  background-color: rgba(255, 255, 255, 0.18);
-  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 .lang-switch label {
@@ -148,13 +215,24 @@
   font-size: 0.8rem;
   font-weight: 500;
   color: var(--ink-light);
+  cursor: pointer;
   transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.lang-switch label:hover {
+  background-color: rgba(255, 255, 255, 0.18);
 }
 
 body:has(#lang-ba:checked) .lang-switch label[for='lang-ba'],
 body:has(#lang-en:checked) .lang-switch label[for='lang-en'] {
   background-color: #ffffff;
   color: #0d0d0d;
+}
+
+/* Samakan hover pill aktif dengan .nav-link--active:hover agar kontras teks tetap tajam */
+body:has(#lang-ba:checked) .lang-switch label[for='lang-ba']:hover,
+body:has(#lang-en:checked) .lang-switch label[for='lang-en']:hover {
+  background-color: #f0f4ff;
 }
 
 .btn-portal {
@@ -420,19 +498,32 @@ body:has(#lang-en:checked) .lang-switch label[for='lang-en'] {
   display: inline-flex;
   align-items: center;
   gap: 10px;
+  margin-bottom: 12px;
 }
 
-.footer-brand svg {
-  width: 20px;
-  height: 20px;
-  flex-shrink: 0;
-  color: var(--blue-primary);
+.footer-brand .brand-mark__icon {
+  width: 30px;
+  height: 30px;
 }
+
+.footer-brand .brand-mark__title {
+  font-size: 1.25rem;
+  color: var(--ink-dark);
+}
+
+.footer-brand .brand-mark__sub {
+  color: var(--ink-muted);
+}
+
+/* Di footer terang, ubin logo memakai tinta biru tua di atas kertas putih. */
+.footer-brand .brand-tile { fill: #0b2466; }
+.footer-brand .brand-sq { fill: #ffffff; }
+.footer-brand .brand-sq-accent { fill: #86acfb; }
 
 @media (prefers-color-scheme: dark) {
-  .footer-brand svg {
-    color: #86acfb;
-  }
+  .footer-brand .brand-tile { fill: #ffffff; }
+  .footer-brand .brand-sq { fill: #0b2466; }
+  .footer-brand .brand-sq-accent { fill: #1150ef; }
 }
 
 .footer-heading {
@@ -519,6 +610,20 @@ body:has(#lang-en:checked) .lang-switch label[for='lang-en'] {
 }
 
 @media (max-width: 580px) {
+  .brand-mark {
+    padding: 5px 10px 5px 6px;
+    gap: 8px;
+  }
+
+  .brand-mark__icon {
+    width: 24px;
+    height: 24px;
+  }
+
+  .brand-mark__sub {
+    font-size: 0.58rem;
+  }
+
   .event-grid:not(.featured-snap) {
     grid-template-columns: 1fr;
   }

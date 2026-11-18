@@ -23,12 +23,19 @@ window.PortalKampus = window.PortalKampus || {};
     payload: null,
     localDrafts: loadStoredDrafts(),
     lastUndo: null,
+    posterUrl: '',
     qmCategory: 'seminar',
+    qmPosterUrl: '',
     qmEditingEventId: '',
-    qmBaseEvent: null
+    qmBaseEvent: null,
+    sessionTimerId: null,
+    workspaceInitialized: false,
+    pinFailedCount: 0,
+    pinCooldownUntil: 0
   };
 
   var el = {};
+  var applyPinGateState = function () {};
 
   function padTwo(n) {
     return String(n).padStart(2, '0');
@@ -98,6 +105,149 @@ window.PortalKampus = window.PortalKampus || {};
     }) || null;
   }
 
+  function findPresetPoster(posterPath) {
+    if (!posterPath || !Array.isArray(CONFIG.presetPosters)) {
+      return null;
+    }
+    for (var i = 0; i < CONFIG.presetPosters.length; i++) {
+      if (CONFIG.presetPosters[i].path === posterPath) {
+        return CONFIG.presetPosters[i];
+      }
+    }
+    return null;
+  }
+
+  function getExplicitEventPoster(ev) {
+    if (!ev) {
+      return '';
+    }
+    if (ev.explicitPoster !== undefined) {
+      return svc.normalizePosterUrl(ev.explicitPoster);
+    }
+    var catMeta = svc.getCategoryMeta(ev.category || 'seminar');
+    var poster = svc.normalizePosterUrl(ev.poster || '');
+    return poster && poster !== catMeta.defaultPoster ? poster : '';
+  }
+
+  function renderPosterGalleryGrid(container, activePosterUrl, catMeta) {
+    if (!container) {
+      return;
+    }
+    var renderKey = String(catMeta.id) + '|' + String(activePosterUrl || '');
+    if (container.getAttribute('data-render-key') === renderKey) {
+      return;
+    }
+    container.setAttribute('data-render-key', renderKey);
+
+    var tiles = [
+      '<button type="button" class="poster-thumb-btn' + (!activePosterUrl ? ' is-active' : '') + '" ' +
+      'data-poster-path="" aria-pressed="' + (!activePosterUrl ? 'true' : 'false') + '">' +
+        '<img class="poster-thumb-btn__img" src="' + svc.escapeHtml(catMeta.defaultPoster) + '" alt="" width="120" height="75" loading="lazy" decoding="async">' +
+        '<span class="poster-thumb-btn__label">Ikuti Kategori (' + svc.escapeHtml(catMeta.labelId) + ')</span>' +
+      '</button>'
+    ];
+
+    (CONFIG.presetPosters || []).forEach(function (preset) {
+      var isActive = activePosterUrl === preset.path;
+      tiles.push(
+        '<button type="button" class="poster-thumb-btn' + (isActive ? ' is-active' : '') + '" ' +
+        'data-poster-path="' + svc.escapeHtml(preset.path) + '" aria-pressed="' + (isActive ? 'true' : 'false') + '">' +
+          '<img class="poster-thumb-btn__img" src="' + svc.escapeHtml(preset.path) + '" alt="" width="120" height="75" loading="lazy" decoding="async">' +
+          '<span class="poster-thumb-btn__label">' + svc.escapeHtml(preset.label) + '</span>' +
+        '</button>'
+      );
+    });
+
+    container.innerHTML = tiles.join('');
+  }
+
+  function syncPosterPickerUi(opts) {
+    var catMeta = svc.getCategoryMeta(opts.categoryId || 'seminar');
+    var rawInput = opts.customInputEl ? opts.customInputEl.value.trim() : '';
+    var rawUrl = rawInput || opts.posterUrl || '';
+    var normalizedUrl = svc.normalizePosterUrl(rawUrl);
+    var effectiveUrl = normalizedUrl || catMeta.defaultPoster;
+    var matchedPreset = findPresetPoster(normalizedUrl);
+    var isDriveLink = Boolean(rawInput && svc.isGoogleDriveUrl(rawInput));
+
+    if (opts.previewImgEl) {
+      if (opts.previewImgEl.getAttribute('src') !== effectiveUrl) {
+        opts.previewImgEl.setAttribute('src', effectiveUrl);
+      }
+      opts.previewImgEl.setAttribute('data-fallback', catMeta.defaultPoster);
+      ui.attachImageFallbacks(opts.previewImgEl.parentElement);
+    }
+
+    if (opts.previewLabelEl) {
+      if (!normalizedUrl) {
+        opts.previewLabelEl.textContent = 'Default Kategori: ' + catMeta.labelId;
+      } else if (matchedPreset) {
+        opts.previewLabelEl.textContent = 'Galeri: ' + matchedPreset.label;
+      } else if (isDriveLink || svc.isGoogleDriveUrl(normalizedUrl)) {
+        opts.previewLabelEl.textContent = 'Google Drive (konversi otomatis)';
+      } else {
+        opts.previewLabelEl.textContent = 'URL Poster Custom';
+      }
+    }
+
+    if (opts.clearBtnEl) {
+      opts.clearBtnEl.hidden = !normalizedUrl;
+    }
+
+    if (opts.hintEl) {
+      if (isDriveLink) {
+        opts.hintEl.textContent = 'Link Google Drive terdeteksi dan otomatis dikonversi ke URL gambar langsung. Pastikan akses file diset ke "Anyone with the link".';
+      } else {
+        opts.hintEl.textContent = opts.defaultHint;
+      }
+    }
+
+    renderPosterGalleryGrid(opts.galleryEl, normalizedUrl, catMeta);
+  }
+
+  function bindPosterPickerEvents(opts) {
+    if (opts.galleryEl) {
+      opts.galleryEl.addEventListener('click', function (e) {
+        var btn = e.target.closest('button[data-poster-path]');
+        if (!btn) {
+          return;
+        }
+        var chosen = btn.getAttribute('data-poster-path') || '';
+        opts.setPosterUrl(chosen);
+        if (opts.customInputEl) {
+          opts.customInputEl.value = '';
+        }
+        opts.onUpdate();
+      });
+    }
+
+    if (opts.clearBtnEl) {
+      opts.clearBtnEl.addEventListener('click', function () {
+        opts.setPosterUrl('');
+        if (opts.customInputEl) {
+          opts.customInputEl.value = '';
+        }
+        opts.onUpdate();
+      });
+    }
+
+    if (opts.customInputEl) {
+      opts.customInputEl.addEventListener('input', function () {
+        opts.setPosterUrl(svc.normalizePosterUrl(opts.customInputEl.value));
+        opts.onUpdate();
+      });
+      opts.customInputEl.addEventListener('change', function () {
+        var raw = opts.customInputEl.value.trim();
+        var normalized = svc.normalizePosterUrl(raw);
+        if (normalized && svc.isGoogleDriveUrl(raw) && normalized !== raw) {
+          opts.customInputEl.value = normalized;
+        }
+        opts.setPosterUrl(normalized);
+        opts.onUpdate();
+      });
+    }
+  }
+
   function populateSelectOptions() {
     if (el.category) {
       el.category.innerHTML = CONFIG.categories
@@ -105,13 +255,6 @@ window.PortalKampus = window.PortalKampus || {};
           return '<option value="' + svc.escapeHtml(cat.id) + '">' + svc.escapeHtml(cat.labelId) + '</option>';
         })
         .join('');
-    }
-    if (el.posterPreset) {
-      var opts = ['<option value="">Otomatis sesuai kategori</option>'];
-      CONFIG.presetPosters.forEach(function (preset) {
-        opts.push('<option value="' + svc.escapeHtml(preset.path) + '">' + svc.escapeHtml(preset.label) + '</option>');
-      });
-      el.posterPreset.innerHTML = opts.join('');
     }
   }
 
@@ -295,8 +438,8 @@ window.PortalKampus = window.PortalKampus || {};
   }
 
   function readFormState() {
-    var customPoster = el.posterCustom ? el.posterCustom.value.trim() : '';
-    var presetPoster = el.posterPreset ? el.posterPreset.value.trim() : '';
+    var customPoster = el.posterCustom ? svc.normalizePosterUrl(el.posterCustom.value.trim()) : '';
+    var chosenPoster = customPoster || state.posterUrl || '';
     return buildEventPayloadData({
       eventId: state.editingEventId,
       title: el.title ? el.title.value : '',
@@ -312,7 +455,7 @@ window.PortalKampus = window.PortalKampus || {};
       fee: el.fee ? el.fee.value : '',
       contact: el.contact ? el.contact.value : '',
       daftarUrl: el.daftarUrl ? el.daftarUrl.value : '',
-      posterUrl: customPoster || presetPoster,
+      posterUrl: chosenPoster,
       rundownRaw: el.rundown ? el.rundown.value : ''
     });
   }
@@ -392,7 +535,22 @@ window.PortalKampus = window.PortalKampus || {};
     }
   }
 
+  function syncFullPosterPicker() {
+    syncPosterPickerUi({
+      categoryId: el.category ? el.category.value : 'seminar',
+      posterUrl: state.posterUrl,
+      customInputEl: el.posterCustom,
+      previewImgEl: el.posterPreviewImg,
+      previewLabelEl: el.posterPreviewLabel,
+      clearBtnEl: el.posterClearBtn,
+      hintEl: el.posterHint,
+      galleryEl: el.posterGallery,
+      defaultHint: 'Kosongkan URL dan pilih "Ikuti Kategori" untuk memakai foto bawaan kategori. Jika memakai link Google Drive, pastikan akses file diset ke "Anyone with the link".'
+    });
+  }
+
   function updatePreview() {
+    syncFullPosterPicker();
     var data = readFormState();
     if (el.startTime && el.endTime) {
       el.startTime.disabled = data.isAllDay;
@@ -511,15 +669,11 @@ window.PortalKampus = window.PortalKampus || {};
       }
     }
 
-    var matchedPreset = CONFIG.presetPosters.some(function (p) {
-      return p.path === ev.poster;
-    });
-    if (matchedPreset && el.posterPreset) {
-      el.posterPreset.value = ev.poster;
-      if (el.posterCustom) el.posterCustom.value = '';
-    } else if (el.posterCustom) {
-      el.posterPreset.value = '';
-      el.posterCustom.value = ev.poster || '';
+    var explicitPoster = getExplicitEventPoster(ev);
+    state.posterUrl = explicitPoster;
+    var matchedPreset = findPresetPoster(explicitPoster);
+    if (el.posterCustom) {
+      el.posterCustom.value = explicitPoster && !matchedPreset ? explicitPoster : '';
     }
 
     if (el.rundown) {
@@ -530,14 +684,27 @@ window.PortalKampus = window.PortalKampus || {};
     updatePreview();
   }
 
-  function loadEventIntoFullForm(eventId) {
+  function loadEventIntoFullForm(eventId, options) {
+    var opts = options || {};
     var ev = findEventById(eventId);
     if (!ev) {
       return;
     }
     applyEventToFullForm(ev);
     renderAdminTimeline();
-    showActionFeedback('Jadwal "' + ev.title + '" dimuat ke formulir lengkap.', false);
+    showActionFeedback(
+      opts.focusPoster
+        ? 'Jadwal "' + ev.title + '" dimuat. Pilih foto galeri atau tempel link thumbnail di bawah.'
+        : 'Jadwal "' + ev.title + '" dimuat ke formulir lengkap.',
+      false
+    );
+    if (opts.focusPoster && el.posterSection) {
+      el.posterSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      if (el.posterCustom) {
+        el.posterCustom.focus();
+      }
+      return;
+    }
     if (el.title) {
       el.title.scrollIntoView({ behavior: 'smooth', block: 'center' });
       el.title.focus();
@@ -546,6 +713,7 @@ window.PortalKampus = window.PortalKampus || {};
 
   function cancelEditMode() {
     state.editingEventId = '';
+    state.posterUrl = '';
     el.form.reset();
     setDefaultDateInputs(true);
     updatePreview();
@@ -615,8 +783,34 @@ window.PortalKampus = window.PortalKampus || {};
       .join('');
   }
 
+  function syncQuickPosterPicker() {
+    syncPosterPickerUi({
+      categoryId: state.qmCategory,
+      posterUrl: state.qmPosterUrl,
+      customInputEl: el.qmPosterCustom,
+      previewImgEl: el.qmPosterPreviewImg,
+      previewLabelEl: el.qmPosterPreviewLabel,
+      clearBtnEl: el.qmPosterClearBtn,
+      hintEl: el.qmPosterHint,
+      galleryEl: el.qmPosterGallery,
+      defaultHint: 'Untuk link Google Drive, pastikan akses diset ke "Anyone with the link".'
+    });
+  }
+
+  function setQuickPosterDrawerOpen(isOpen) {
+    if (el.qmPosterDrawer) {
+      el.qmPosterDrawer.hidden = !isOpen;
+    }
+    if (el.qmPosterToggleBtn) {
+      el.qmPosterToggleBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+      el.qmPosterToggleBtn.textContent = isOpen ? 'Tutup Galeri' : 'Ganti Foto';
+    }
+  }
+
   function readQuickModalPayload() {
     var base = state.qmBaseEvent;
+    var customPoster = el.qmPosterCustom ? svc.normalizePosterUrl(el.qmPosterCustom.value.trim()) : '';
+    var chosenPoster = customPoster || state.qmPosterUrl || '';
     return buildEventPayloadData({
       eventId: state.qmEditingEventId,
       title: el.qmTitle ? el.qmTitle.value : '',
@@ -632,9 +826,7 @@ window.PortalKampus = window.PortalKampus || {};
       fee: getExplicitField(base, 'explicitFee', 'fee'),
       contact: getExplicitField(base, 'explicitContact', 'contact'),
       daftarUrl: base ? base.daftarUrl : '',
-      posterUrl: base && base.explicitPoster !== undefined
-        ? base.explicitPoster
-        : (base && base.poster && base.poster.indexOf('assets/') !== 0 ? base.poster : ''),
+      posterUrl: chosenPoster,
       rundownRaw: base && Array.isArray(base.rundown)
         ? base.rundown.map(function (r) { return r.time + ' | ' + r.activity; }).join('\n')
         : ''
@@ -654,6 +846,7 @@ window.PortalKampus = window.PortalKampus || {};
       el.qmDurationBar.hidden = isAllDay;
     }
 
+    syncQuickPosterPicker();
     var data = readQuickModalPayload();
     renderOverlapWarningInto(el.qmOverlapWarn, data, state.qmEditingEventId);
 
@@ -691,6 +884,9 @@ window.PortalKampus = window.PortalKampus || {};
     state.qmEditingEventId = '';
     state.qmBaseEvent = null;
     state.qmCategory = 'seminar';
+    state.qmPosterUrl = '';
+    if (el.qmPosterCustom) el.qmPosterCustom.value = '';
+    setQuickPosterDrawerOpen(false);
     state.activeSelection = isAllDay ? null : { dateKey: dateKey, startMin: startMin, endMin: endMin };
 
     if (el.qmHeading) el.qmHeading.textContent = 'Buat Event Baru';
@@ -730,6 +926,13 @@ window.PortalKampus = window.PortalKampus || {};
     state.qmEditingEventId = ev.id;
     state.qmBaseEvent = ev;
     state.qmCategory = ev.category || 'seminar';
+    var explicitQmPoster = getExplicitEventPoster(ev);
+    state.qmPosterUrl = explicitQmPoster;
+    var matchedQmPreset = findPresetPoster(explicitQmPoster);
+    if (el.qmPosterCustom) {
+      el.qmPosterCustom.value = explicitQmPoster && !matchedQmPreset ? explicitQmPoster : '';
+    }
+    setQuickPosterDrawerOpen(false);
     state.activeSelection = null;
 
     var startDt = new Date(ev.startIso);
@@ -836,6 +1039,7 @@ window.PortalKampus = window.PortalKampus || {};
         closeQuickModal();
         await loadConnectedSchedule(true);
       } catch (err) {
+        renderStatusSummary();
         if (el.qmError) {
           el.qmError.className = 'admin-feedback admin-feedback--error';
           el.qmError.textContent = 'Gagal menyimpan: ' + (err && err.message ? err.message : 'Error');
@@ -895,6 +1099,7 @@ window.PortalKampus = window.PortalKampus || {};
         await loadConnectedSchedule(true);
         showToast(msg, { undoAvailable: true });
       } catch (err) {
+        renderStatusSummary();
         showToast('Gagal memperbarui Google Calendar: ' + (err && err.message ? err.message : 'Error'), { isError: true });
       }
       return;
@@ -1017,6 +1222,55 @@ window.PortalKampus = window.PortalKampus || {};
     });
   }
 
+  function formatSessionCountdown(remainingMs) {
+    var totalSeconds = Math.max(0, Math.ceil(Number(remainingMs || 0) / 1000));
+    var mins = Math.floor(totalSeconds / 60);
+    var secs = totalSeconds % 60;
+    return padTwo(mins) + ':' + padTwo(secs);
+  }
+
+  function syncSessionCountdown() {
+    if (state.sessionTimerId) {
+      window.clearInterval(state.sessionTimerId);
+      state.sessionTimerId = null;
+    }
+    var pinStatus = svc.getAdminPinStatus();
+    var authStatus = svc.getAdminAuthStatus();
+    if (!pinStatus.unlocked && !authStatus.signedIn) {
+      return;
+    }
+    state.sessionTimerId = window.setInterval(function () {
+      var currentPin = svc.getAdminPinStatus();
+      if (!currentPin.unlocked && el.workspaceShell && !el.workspaceShell.hidden) {
+        window.clearInterval(state.sessionTimerId);
+        state.sessionTimerId = null;
+        applyPinGateState('Sesi PIN Panel Admin 30 menit telah berakhir. Silakan masukkan PIN kembali.');
+        return;
+      }
+
+      var currentAuth = svc.getAdminAuthStatus();
+      var oauthWasActive = Boolean(document.getElementById('admin-session-countdown'));
+      if (oauthWasActive && !currentAuth.signedIn) {
+        svc.signOutAdmin();
+        renderStatusSummary();
+        syncFormModeControls();
+        renderConnectedList();
+        showActionFeedback('Sesi login Google 30 menit telah berakhir. Silakan login kembali.', true);
+        showToast('Sesi login Google 30 menit telah berakhir. Silakan masuk kembali.', { isError: true });
+        return;
+      }
+
+      var pinBadge = document.getElementById('admin-pin-countdown');
+      if (pinBadge && currentPin.unlocked) {
+        pinBadge.textContent = 'Panel 30m: ' + formatSessionCountdown(currentPin.remainingMs);
+      }
+      var badge = document.getElementById('admin-session-countdown');
+      if (badge && currentAuth.signedIn) {
+        badge.textContent = 'Google 30m: ' + formatSessionCountdown(currentAuth.remainingMs);
+      }
+    }, 1000);
+  }
+
   function renderStatusSummary() {
     if (!el.statusSummary || !state.payload) {
       return;
@@ -1025,6 +1279,7 @@ window.PortalKampus = window.PortalKampus || {};
     var draftCount = state.localDrafts.length;
     var isLive = state.payload.source === 'google';
     var auth = svc.getAdminAuthStatus();
+    var pinStatus = svc.getAdminPinStatus();
 
     var statusLabel = isLive
       ? 'Terhubung Live ke Google Calendar API'
@@ -1034,6 +1289,13 @@ window.PortalKampus = window.PortalKampus || {};
 
     var authNote = '';
     var authBtnHtml = '';
+    var sessionBadgeHtml = '';
+    if (pinStatus.unlocked) {
+      sessionBadgeHtml +=
+        ' <span id="admin-pin-countdown" class="admin-session-badge">Panel 30m: ' +
+        svc.escapeHtml(formatSessionCountdown(pinStatus.remainingMs)) +
+        '</span>';
+    }
     if (!auth.protocolSupported) {
       authNote = 'Login OAuth Google butuh Live Server / GitHub Pages (http/https); mode template & draft lokal aktif.';
     } else if (!auth.configured) {
@@ -1041,6 +1303,10 @@ window.PortalKampus = window.PortalKampus || {};
       authBtnHtml = '<a class="btn btn-outline btn-compact" href="#setup-gcal">Setup OAuth Client ID</a>';
     } else if (auth.signedIn) {
       authNote = 'Sesi Login Admin Google OAuth aktif (Create, Drag Move/Resize, dan Delete langsung aktif).';
+      sessionBadgeHtml +=
+        ' <span id="admin-session-countdown" class="admin-session-badge">Google 30m: ' +
+        svc.escapeHtml(formatSessionCountdown(auth.remainingMs)) +
+        '</span>';
       authBtnHtml =
         '<button type="button" class="btn btn-outline btn-compact" id="admin-oauth-switch-btn">Ganti Akun Google</button>' +
         '<button type="button" class="btn btn-outline btn-compact" id="admin-oauth-logout-btn">Keluar Sesi Google</button>';
@@ -1059,7 +1325,7 @@ window.PortalKampus = window.PortalKampus || {};
             (draftCount > 0 ? ' (' + draftCount + ' draft lokal)' : '') +
             (state.payload.errorMessage ? ' · Error: ' + svc.escapeHtml(state.payload.errorMessage) : '') +
           '</p>' +
-          '<p class="admin-status-meta">' + svc.escapeHtml(authNote) + '</p>' +
+          '<p class="admin-status-meta">' + svc.escapeHtml(authNote) + sessionBadgeHtml + '</p>' +
         '</div>' +
         '<div class="admin-status-actions">' +
           authBtnHtml +
@@ -1071,6 +1337,7 @@ window.PortalKampus = window.PortalKampus || {};
             : '') +
           '<button type="button" class="btn btn-outline btn-compact" id="admin-refresh-btn">Muat Ulang Data</button>' +
           '<a class="btn btn-outline btn-compact" href="https://calendar.google.com/" target="_blank" rel="noopener">Buka Google Calendar</a>' +
+          '<button type="button" class="btn btn-outline btn-compact" id="admin-lock-panel-btn">Kunci Panel</button>' +
         '</div>' +
       '</div>';
 
@@ -1115,12 +1382,23 @@ window.PortalKampus = window.PortalKampus || {};
     if (logoutBtn) {
       logoutBtn.addEventListener('click', function () {
         svc.signOutAdmin();
+        syncSessionCountdown();
         renderStatusSummary();
         syncFormModeControls();
         renderConnectedList();
         showActionFeedback('Sesi admin Google OAuth telah ditutup.', false);
       });
     }
+
+    var lockPanelBtn = document.getElementById('admin-lock-panel-btn');
+    if (lockPanelBtn) {
+      lockPanelBtn.addEventListener('click', function () {
+        svc.lockAdminPanel();
+        applyPinGateState('');
+      });
+    }
+
+    syncSessionCountdown();
   }
 
   async function publishAllLocalDrafts() {
@@ -1181,6 +1459,7 @@ window.PortalKampus = window.PortalKampus || {};
       state.lastUndo = { type: 'draft', previousDrafts: prev };
       if (state.editingEventId === eventId) {
         state.editingEventId = '';
+        state.posterUrl = '';
         el.form.reset();
         setDefaultDateInputs(true);
       }
@@ -1206,6 +1485,7 @@ window.PortalKampus = window.PortalKampus || {};
       await svc.deleteGoogleEvent(eventId);
       if (state.editingEventId === eventId) {
         state.editingEventId = '';
+        state.posterUrl = '';
         el.form.reset();
         setDefaultDateInputs(true);
       }
@@ -1213,6 +1493,7 @@ window.PortalKampus = window.PortalKampus || {};
       showToast('Jadwal "' + label + '" berhasil dihapus dari Google Calendar.');
       await loadConnectedSchedule(true);
     } catch (err) {
+      renderStatusSummary();
       showActionFeedback('Gagal menghapus jadwal: ' + (err && err.message ? err.message : 'Error'), true);
     } finally {
       state.isSaving = false;
@@ -1252,21 +1533,41 @@ window.PortalKampus = window.PortalKampus || {};
               var catMeta = svc.getCategoryMeta(ev.category);
               var statusMeta = ui.getStatusMeta(ev.status);
               var canDelete = Boolean(ev.isLocalDraft || auth.signedIn);
+              var customPoster = getExplicitEventPoster(ev);
+              var thumbSrc = ev.poster || catMeta.defaultPoster;
+              var thumbTag = customPoster
+                ? '<span class="admin-table-thumb-tag">' + (svc.isGoogleDriveUrl(customPoster) ? 'Drive' : 'Custom') + '</span>'
+                : '';
               return (
                 '<tr>' +
-                  '<td><strong>' + svc.escapeHtml(ui.getEventTitle(ev, lang)) + '</strong>' +
-                    (ev.isLocalDraft ? ' <span class="tl-tag tl-tag--draft">Draft Lokal</span>' : '') +
-                    '<br><span class="table-sub">' + svc.escapeHtml(ev.location || '-') + '</span></td>' +
+                  '<td>' +
+                    '<div class="admin-table-event">' +
+                      '<button type="button" class="admin-table-thumb-btn" data-edit-poster-id="' + svc.escapeHtml(ev.id) + '" ' +
+                      'aria-label="Ubah foto thumbnail untuk ' + svc.escapeHtml(ui.getEventTitle(ev, lang)) + '" ' +
+                      'title="Klik untuk mengganti thumbnail event ini">' +
+                        '<img class="admin-table-thumb" src="' + svc.escapeHtml(thumbSrc) + '" data-fallback="' + svc.escapeHtml(catMeta.defaultPoster) + '" ' +
+                        'alt="" width="56" height="42" loading="lazy" decoding="async">' +
+                      '</button>' +
+                      '<div>' +
+                        '<strong>' + svc.escapeHtml(ui.getEventTitle(ev, lang)) + '</strong>' +
+                        (ev.isLocalDraft ? ' <span class="tl-tag tl-tag--draft">Draft Lokal</span>' : '') +
+                        thumbTag +
+                        '<br><span class="table-sub">' + svc.escapeHtml(ev.location || '-') + '</span>' +
+                      '</div>' +
+                    '</div>' +
+                  '</td>' +
                   '<td>' + svc.escapeHtml(svc.formatDisplayDate(ev, lang)) + '</td>' +
                   '<td><span class="badge badge--cat">' + svc.escapeHtml(catMeta.labelId) + '</span> <span class="badge ' + statusMeta.className + '">' + svc.escapeHtml(statusMeta.label) + '</span></td>' +
-                  '<td class="table-actions">' +
-                    '<button type="button" class="btn btn-outline btn-compact" data-edit-id="' + svc.escapeHtml(ev.id) + '">Edit</button>' +
-                    (!ev.isLocalDraft
-                      ? '<a class="btn btn-outline btn-compact" href="' + svc.escapeHtml(ui.getDetailHref(ev)) + '">Detail</a>'
-                      : '<a class="btn btn-outline btn-compact" href="' + svc.escapeHtml(ics.buildGoogleCalendarAddUrl(ev)) + '" target="_blank" rel="noopener">Google Calendar</a>') +
-                    (canDelete
-                      ? '<button type="button" class="btn btn-outline btn-compact btn-danger-outline" data-delete-id="' + svc.escapeHtml(ev.id) + '">Hapus</button>'
-                      : '') +
+                  '<td>' +
+                    '<div class="table-actions">' +
+                      '<button type="button" class="btn btn-outline btn-compact" data-edit-id="' + svc.escapeHtml(ev.id) + '">Edit</button>' +
+                      (!ev.isLocalDraft
+                        ? '<a class="btn btn-outline btn-compact" href="' + svc.escapeHtml(ui.getDetailHref(ev)) + '">Detail</a>'
+                        : '<a class="btn btn-outline btn-compact" href="' + svc.escapeHtml(ics.buildGoogleCalendarAddUrl(ev)) + '" target="_blank" rel="noopener">Google Calendar</a>') +
+                      (canDelete
+                        ? '<button type="button" class="btn btn-outline btn-compact btn-danger-outline" data-delete-id="' + svc.escapeHtml(ev.id) + '">Hapus</button>'
+                        : '') +
+                    '</div>' +
                   '</td>' +
                 '</tr>'
               );
@@ -1274,6 +1575,7 @@ window.PortalKampus = window.PortalKampus || {};
           '</tbody>' +
         '</table>' +
       '</div>';
+    ui.attachImageFallbacks(el.connectedList);
   }
 
   async function loadConnectedSchedule(forceRefresh) {
@@ -1335,6 +1637,20 @@ window.PortalKampus = window.PortalKampus || {};
         adjustQuickModalDuration(Number(btn.getAttribute('data-qm-dur')));
       });
     }
+    if (el.qmPosterToggleBtn && el.qmPosterDrawer) {
+      el.qmPosterToggleBtn.addEventListener('click', function () {
+        setQuickPosterDrawerOpen(el.qmPosterDrawer.hidden);
+      });
+    }
+    bindPosterPickerEvents({
+      galleryEl: el.qmPosterGallery,
+      clearBtnEl: el.qmPosterClearBtn,
+      customInputEl: el.qmPosterCustom,
+      setPosterUrl: function (nextUrl) {
+        state.qmPosterUrl = nextUrl;
+      },
+      onUpdate: syncQuickModalState
+    });
     el.qmForm.addEventListener('input', syncQuickModalState);
     el.qmForm.addEventListener('change', syncQuickModalState);
     el.qmForm.addEventListener('submit', handleQuickModalSubmit);
@@ -1386,8 +1702,13 @@ window.PortalKampus = window.PortalKampus || {};
     el.fee = document.getElementById('adm-fee');
     el.contact = document.getElementById('adm-contact');
     el.daftarUrl = document.getElementById('adm-daftar');
-    el.posterPreset = document.getElementById('adm-poster-preset');
+    el.posterSection = document.getElementById('adm-poster-section');
+    el.posterPreviewImg = document.getElementById('adm-poster-preview-img');
+    el.posterPreviewLabel = document.getElementById('adm-poster-preview-label');
+    el.posterClearBtn = document.getElementById('adm-poster-clear-btn');
     el.posterCustom = document.getElementById('adm-poster-custom');
+    el.posterHint = document.getElementById('adm-poster-hint');
+    el.posterGallery = document.getElementById('adm-poster-gallery');
     el.rundown = document.getElementById('adm-rundown');
     el.detailsOutput = document.getElementById('adm-details-output');
     el.cardPreview = document.getElementById('adm-card-preview');
@@ -1417,6 +1738,14 @@ window.PortalKampus = window.PortalKampus || {};
     el.qmDurationBar = document.getElementById('qm-duration-bar');
     el.qmLocation = document.getElementById('qm-location');
     el.qmDescription = document.getElementById('qm-description');
+    el.qmPosterPreviewImg = document.getElementById('qm-poster-preview-img');
+    el.qmPosterPreviewLabel = document.getElementById('qm-poster-preview-label');
+    el.qmPosterClearBtn = document.getElementById('qm-poster-clear-btn');
+    el.qmPosterToggleBtn = document.getElementById('qm-poster-toggle-btn');
+    el.qmPosterDrawer = document.getElementById('qm-poster-drawer');
+    el.qmPosterCustom = document.getElementById('qm-poster-custom');
+    el.qmPosterHint = document.getElementById('qm-poster-hint');
+    el.qmPosterGallery = document.getElementById('qm-poster-gallery');
     el.qmOverlapWarn = document.getElementById('qm-overlap-warn');
     el.qmSyncNote = document.getElementById('qm-sync-note');
     el.qmError = document.getElementById('qm-error');
@@ -1429,11 +1758,130 @@ window.PortalKampus = window.PortalKampus || {};
       return;
     }
 
-    populateSelectOptions();
-    setDefaultDateInputs(false);
-    bindQuickModalEvents();
-    updatePreview();
-    loadConnectedSchedule(false);
+    el.pinGate = document.getElementById('admin-pin-gate');
+    el.workspaceShell = document.getElementById('admin-workspace-shell');
+    el.pinForm = document.getElementById('admin-pin-form');
+    el.pinInput = document.getElementById('admin-pin-input');
+    el.pinToggle = document.getElementById('admin-pin-toggle');
+    el.pinError = document.getElementById('admin-pin-error');
+    el.pinSubmit = document.getElementById('admin-pin-submit');
+
+    function setPinFeedback(message, isError) {
+      if (!el.pinError) {
+        return;
+      }
+      if (!message) {
+        el.pinError.className = 'admin-feedback';
+        el.pinError.textContent = '';
+        return;
+      }
+      el.pinError.className = 'admin-feedback ' + (isError ? 'admin-feedback--error' : 'admin-feedback--ok');
+      el.pinError.textContent = message;
+    }
+
+    function ensureWorkspaceInitialized() {
+      if (state.workspaceInitialized) {
+        return;
+      }
+      state.workspaceInitialized = true;
+      populateSelectOptions();
+      setDefaultDateInputs(false);
+      bindPosterPickerEvents({
+        galleryEl: el.posterGallery,
+        clearBtnEl: el.posterClearBtn,
+        customInputEl: el.posterCustom,
+        setPosterUrl: function (nextUrl) {
+          state.posterUrl = nextUrl;
+        },
+        onUpdate: updatePreview
+      });
+      bindQuickModalEvents();
+      updatePreview();
+      loadConnectedSchedule(false);
+    }
+
+    applyPinGateState = function (reasonMessage) {
+      var pinStatus = svc.getAdminPinStatus();
+      if (pinStatus.unlocked) {
+        if (el.pinGate) el.pinGate.hidden = true;
+        if (el.workspaceShell) el.workspaceShell.hidden = false;
+        setPinFeedback('', false);
+        ensureWorkspaceInitialized();
+        renderStatusSummary();
+        syncSessionCountdown();
+        return;
+      }
+
+      if (el.workspaceShell) el.workspaceShell.hidden = true;
+      if (el.pinGate) el.pinGate.hidden = false;
+      syncSessionCountdown();
+      if (el.pinInput) {
+        el.pinInput.value = '';
+      }
+      if (!pinStatus.configured) {
+        setPinFeedback('ADMIN_PIN belum diatur pada Environment Variable Vercel atau js/config.js.', true);
+        if (el.pinSubmit) el.pinSubmit.disabled = true;
+      } else {
+        if (el.pinSubmit) el.pinSubmit.disabled = false;
+        if (reasonMessage) {
+          setPinFeedback(reasonMessage, true);
+        } else {
+          setPinFeedback('', false);
+        }
+      }
+      if (el.pinInput && pinStatus.configured) {
+        el.pinInput.focus();
+      }
+    };
+
+    if (el.pinToggle && el.pinInput) {
+      el.pinToggle.addEventListener('click', function () {
+        var nextShow = el.pinInput.type === 'password';
+        el.pinInput.type = nextShow ? 'text' : 'password';
+        el.pinToggle.setAttribute('aria-pressed', nextShow ? 'true' : 'false');
+        el.pinToggle.textContent = nextShow ? 'Sembunyikan' : 'Lihat';
+      });
+    }
+
+    if (el.pinForm) {
+      el.pinForm.addEventListener('submit', async function (event) {
+        event.preventDefault();
+        if (Date.now() < state.pinCooldownUntil) {
+          var waitSecs = Math.max(1, Math.ceil((state.pinCooldownUntil - Date.now()) / 1000));
+          setPinFeedback('Terlalu banyak percobaan gagal. Coba lagi dalam ' + waitSecs + ' detik.', true);
+          return;
+        }
+        var rawPin = el.pinInput ? el.pinInput.value : '';
+        if (el.pinSubmit) el.pinSubmit.disabled = true;
+        try {
+          var result = await svc.verifyAdminPin(rawPin);
+          if (result && result.ok) {
+            state.pinFailedCount = 0;
+            state.pinCooldownUntil = 0;
+            applyPinGateState('');
+            return;
+          }
+          state.pinFailedCount += 1;
+          if (state.pinFailedCount >= 5) {
+            state.pinCooldownUntil = Date.now() + 15000;
+            state.pinFailedCount = 0;
+            setPinFeedback('Terlalu banyak percobaan salah. Tunggu 15 detik sebelum mencoba lagi.', true);
+          } else {
+            setPinFeedback((result && result.error) || 'PIN Admin tidak sesuai.', true);
+          }
+          if (el.pinInput) {
+            el.pinInput.select();
+            el.pinInput.focus();
+          }
+        } finally {
+          if (el.pinSubmit && svc.getAdminPinStatus().configured) {
+            el.pinSubmit.disabled = false;
+          }
+        }
+      });
+    }
+
+    applyPinGateState('');
 
     el.form.addEventListener('input', updatePreview);
     el.form.addEventListener('change', updatePreview);
@@ -1467,10 +1915,12 @@ window.PortalKampus = window.PortalKampus || {};
           }
           state.selectedDateKey = data.startDate;
           state.editingEventId = '';
+          state.posterUrl = '';
           el.form.reset();
           setDefaultDateInputs(true);
           await loadConnectedSchedule(true);
         } catch (err) {
+          renderStatusSummary();
           showActionFeedback('Gagal menyimpan ke Google Calendar: ' + (err && err.message ? err.message : 'Error'), true);
         } finally {
           state.isSaving = false;
@@ -1498,6 +1948,11 @@ window.PortalKampus = window.PortalKampus || {};
 
     if (el.connectedList) {
       el.connectedList.addEventListener('click', function (event) {
+        var posterBtn = event.target.closest('button[data-edit-poster-id]');
+        if (posterBtn) {
+          loadEventIntoFullForm(posterBtn.getAttribute('data-edit-poster-id'), { focusPoster: true });
+          return;
+        }
         var editBtn = event.target.closest('button[data-edit-id]');
         if (editBtn) {
           loadEventIntoFullForm(editBtn.getAttribute('data-edit-id'));
@@ -1548,6 +2003,7 @@ window.PortalKampus = window.PortalKampus || {};
     if (el.resetBtn) {
       el.resetBtn.addEventListener('click', function () {
         state.editingEventId = '';
+        state.posterUrl = '';
         el.form.reset();
         setDefaultDateInputs(true);
         updatePreview();
@@ -1555,7 +2011,26 @@ window.PortalKampus = window.PortalKampus || {};
       });
     }
 
+    // Sinkronkan sesi PIN panel dan sesi Google OAuth antar-tab saat status berubah.
+    window.addEventListener('storage', function (event) {
+      if (!event.key || event.key === svc.getAdminPinSessionKey()) {
+        svc.reloadAdminPinSession();
+        applyPinGateState('Sesi panel admin dikunci atau berakhir di tab lain.');
+      }
+      if (!event.key || event.key === svc.getAdminSessionKey()) {
+        svc.reloadAdminSession();
+        if (svc.getAdminPinStatus().unlocked) {
+          renderStatusSummary();
+          syncFormModeControls();
+          renderConnectedList();
+        }
+      }
+    });
+
     window.addEventListener('portal:langchange', function () {
+      if (!state.workspaceInitialized) {
+        return;
+      }
       updatePreview();
       renderConnectedList();
       renderAdminTimeline();
