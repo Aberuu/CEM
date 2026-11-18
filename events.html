@@ -3,8 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Daftar Event Kampus — Seminar, Lomba, Workshop &amp; UKM</title>
-  <meta name="description" content="Daftar lengkap event kampus dengan filter kategori murni CSS.">
+  <title>Daftar Event Kampus | Seminar, Lomba, Workshop &amp; UKM</title>
+  <meta name="description" content="Daftar lengkap event kampus dengan pencarian teks, filter kategori, dan sinkronisasi Google Calendar.">
+  <link rel="icon" type="image/svg+xml" href="assets/img/favicon.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500&family=Manrope:wght@400;500&family=Playfair+Display:wght@400;500&display=swap" rel="stylesheet">
@@ -31,7 +32,10 @@
       <div class="nav-shell">
         <a class="brand-mark" href="index.html">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-            <path d="M3 10.5L12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1v-9.5Z"/>
+            <rect x="3" y="5" width="18" height="16" rx="3"/>
+            <path d="M8 2.5v3M16 2.5v3M3 9.5h18" stroke-linecap="round"/>
+            <path d="M9 9.5v11.5M15 9.5v11.5" stroke-width="1.35" opacity="0.5"/>
+            <rect x="10.5" y="13.7" width="3" height="3" rx="0.75" fill="currentColor" stroke="none"/>
           </svg>
           <span>EVENT KAMPUS</span>
         </a>
@@ -51,7 +55,7 @@
 
         <div class="nav-actions">
           <div class="lang-switch" role="group" aria-label="Pilih bahasa">
-            <label for="lang-ba">BA</label>
+            <label for="lang-ba">ID</label>
             <label for="lang-en">EN</label>
           </div>
           <a class="btn-portal" href="calendar.html">
@@ -92,24 +96,36 @@
 
     <section class="content-section content-surface events-scope">
       <div class="wrap">
-        <!-- Radio button tersembunyi untuk filter kategori CSS :has() -->
-        <input class="filter-input" type="radio" name="event-cat" id="cat-all" checked>
-        <input class="filter-input" type="radio" name="event-cat" id="cat-seminar">
-        <input class="filter-input" type="radio" name="event-cat" id="cat-lomba">
-        <input class="filter-input" type="radio" name="event-cat" id="cat-workshop">
-        <input class="filter-input" type="radio" name="event-cat" id="cat-seni">
-        <input class="filter-input" type="radio" name="event-cat" id="cat-ukm">
+        <div id="events-source-notice"></div>
 
-        <div class="filter-bar" role="group" aria-label="Filter kategori event">
-          <label class="filter-chip" for="cat-all">Semua</label>
-          <label class="filter-chip" for="cat-seminar">Seminar</label>
-          <label class="filter-chip" for="cat-lomba">Lomba</label>
-          <label class="filter-chip" for="cat-workshop">Workshop</label>
-          <label class="filter-chip" for="cat-seni">Pentas Seni</label>
-          <label class="filter-chip" for="cat-ukm">UKM</label>
+        <div class="events-toolbar">
+          <div class="form-field">
+            <label for="event-search">
+              <span class="lang-id">Cari Event</span>
+              <span class="lang-en">Search Events</span>
+            </label>
+            <input id="event-search" type="search" placeholder="Cari judul event, lokasi, atau topik...">
+          </div>
+          <div class="form-field">
+            <label for="event-status-filter">
+              <span class="lang-id">Status Kegiatan</span>
+              <span class="lang-en">Event Status</span>
+            </label>
+            <select id="event-status-filter">
+              <option value="all">Semua Status</option>
+              <option value="upcoming">Akan Datang</option>
+              <option value="closed">Selesai</option>
+            </select>
+          </div>
+          <p class="events-count" id="events-count" aria-live="polite"></p>
         </div>
 
-        <div class="event-grid">
+        <div class="filter-bar" id="events-filter-bar" role="group" aria-label="Filter kategori event">
+          <button type="button" class="filter-chip is-active" data-cat="all" aria-pressed="true">Semua</button>
+        </div>
+
+        <div id="events-state"></div>
+        <div class="event-grid" id="events-grid">
           <article class="event-card" data-cat="seminar">
             <div class="event-card__media">
               <img src="assets/img/fti-seminar-poster.png" width="1080" height="1920" alt="Poster Seminar Nasional AI dan Konferensi FTI UKSW" loading="lazy" decoding="async" data-source="client" data-subject="seminar">
@@ -236,11 +252,52 @@
 
   <footer class="site-footer">
     <div class="wrap">
+      <div class="footer-grid">
+        <div>
+          <p class="footer-title footer-brand">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+              <rect x="3" y="5" width="18" height="16" rx="3"/>
+              <path d="M8 2.5v3M16 2.5v3M3 9.5h18" stroke-linecap="round"/>
+              <path d="M9 9.5v11.5M15 9.5v11.5" stroke-width="1.35" opacity="0.5"/>
+              <rect x="10.5" y="13.7" width="3" height="3" rx="0.75" fill="currentColor" stroke="none"/>
+            </svg>
+            <span>Portal Event Kampus</span>
+          </p>
+          <p>
+            <span class="lang-id">Dikembangkan oleh Kelompok Kerupuk Basah - 3 menggunakan HTML, CSS, dan Vanilla JavaScript dengan sinkronisasi Google Calendar.</span>
+            <span class="lang-en">Built by Kelompok Kerupuk Basah - 3 with HTML, CSS, and Vanilla JavaScript synced with Google Calendar.</span>
+          </p>
+        </div>
+        <div>
+          <p class="footer-heading">Navigasi</p>
+          <ul class="footer-links">
+            <li><a href="index.html">Home</a></li>
+            <li><a href="events.html">Daftar Event</a></li>
+            <li><a href="calendar.html">Kalender Bulanan</a></li>
+            <li><a href="about.html">Tentang &amp; Kontak</a></li>
+            <li><a href="admin.html">Admin Jadwal</a></li>
+          </ul>
+        </div>
+        <div>
+          <p class="footer-heading">Kontak &amp; Pengelola</p>
+          <ul class="footer-links">
+            <li><a href="about.html#anggota">Daftar Anggota Kelompok</a></li>
+            <li><a href="https://www.linkedin.com/in/agaphe-abel?utm_source=share_via&amp;utm_content=profile&amp;utm_medium=member_android" target="_blank" rel="noopener">LinkedIn: agaphe-abel</a></li>
+          </ul>
+        </div>
+      </div>
       <div class="footer-bottom">
         <span>&copy; 2026 Portal Event Kampus &middot; Kerupuk Basah - 3</span>
-        <span>LinkedIn: <a href="https://www.linkedin.com/in/agaphe-abel?utm_source=share_via&amp;utm_content=profile&amp;utm_medium=member_android" target="_blank" rel="noopener">agaphe-abel</a></span>
+        <span><a href="admin.html">Buka Halaman Admin Jadwal</a></span>
       </div>
     </div>
   </footer>
+
+  <script defer src="js/config.js"></script>
+  <script defer src="js/fallback-events.js"></script>
+  <script defer src="js/ics-helper.js"></script>
+  <script defer src="js/calendar-service.js"></script>
+  <script defer src="js/ui-common.js"></script>
+  <script defer src="js/page-events.js"></script>
 </body>
 </html>

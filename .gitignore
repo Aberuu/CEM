@@ -4,3 +4,9 @@ anti-slop/
 unslop/
 .DS_Store
 Thumbs.db
+.env
+.env.*
+!.env.example
+.vercel/
+dist/
+js/config.js

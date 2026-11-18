@@ -33,10 +33,9 @@
   z-index: 2;
 }
 
-/* Header & Navbar Pill */
+/* Header & Navbar Pill (mengalir alami di atas halaman agar tidak menutupi konten saat digulir) */
 .site-header {
-  position: sticky;
-  top: 0;
+  position: relative;
   z-index: 100;
   padding-block: 16px;
 }
@@ -63,6 +62,12 @@
   letter-spacing: 0.02em;
   white-space: nowrap;
   flex-shrink: 0;
+  transition: background-color 0.2s ease, color 0.2s ease, transform 0.15s ease;
+}
+
+.brand-mark:hover {
+  background-color: rgba(255, 255, 255, 0.18);
+  transition: background-color 0.2s ease, color 0.2s ease, transform 0.15s ease;
 }
 
 .brand-mark svg {
@@ -117,7 +122,7 @@
   gap: 10px;
 }
 
-/* Pengalih bahasa BA / EN dengan radius kontrol */
+/* Pengalih bahasa ID / EN dengan radius kontrol */
 .lang-switch {
   display: inline-flex;
   align-items: center;
@@ -125,6 +130,11 @@
   border-radius: var(--radius-btn);
   background: rgba(13, 35, 98, 0.42);
   border: 1px solid var(--border-light);
+}
+
+.lang-switch span :hover   {
+  background-color: rgba(255, 255, 255, 0.18);
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 .lang-switch label {
@@ -404,6 +414,25 @@ body:has(#lang-en:checked) .lang-switch label[for='lang-en'] {
   font-size: 1.45rem;
   font-weight: 400;
   margin-bottom: 10px;
+}
+
+.footer-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.footer-brand svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  color: var(--blue-primary);
+}
+
+@media (prefers-color-scheme: dark) {
+  .footer-brand svg {
+    color: #86acfb;
+  }
 }
 
 .footer-heading {
