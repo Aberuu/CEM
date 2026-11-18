@@ -2276,24 +2276,24 @@ body.tl-is-dragging .tl-event-card {
   border-top: 1px solid var(--border-dark);
 }
 
-/* Gerbang login PIN khusus sebelum ruang kerja panel admin terbuka */
-.admin-pin-gate {
+/* Gerbang login Google SSO sebelum ruang kerja panel admin terbuka */
+.admin-auth-gate {
   padding: clamp(44px, 8vw, 88px) 0;
 }
 
-.admin-pin-card {
-  max-width: 460px;
+.admin-auth-card {
+  max-width: 500px;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
   gap: 14px;
 }
 
-.admin-pin-card .badge {
+.admin-auth-card .badge {
   align-self: flex-start;
 }
 
-.admin-pin-card__title {
+.admin-auth-card__title {
   margin: 4px 0 0;
   font-family: var(--font-display);
   font-size: clamp(1.7rem, 3vw, 2.2rem);
@@ -2301,18 +2301,46 @@ body.tl-is-dragging .tl-event-card {
   line-height: 1.15;
 }
 
-.admin-pin-input-row {
+/* Daftar akun Google admin yang diizinkan mengakses panel */
+.admin-accounts-list {
   display: flex;
-  align-items: stretch;
-  gap: 8px;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 14px;
 }
 
-.admin-pin-input-row input {
-  flex: 1 1 auto;
+.admin-account-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: var(--radius-btn);
+  border: 1px solid var(--border-dark);
+  background-color: var(--surface-muted);
+}
+
+.admin-account-item__info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
   min-width: 0;
 }
 
-/* Indikator sisa sesi 30 menit pada panel admin */
+.admin-account-item__email {
+  font-weight: 500;
+  color: var(--ink-dark);
+  word-break: break-all;
+}
+
+.admin-account-item__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* Indikator sisa sesi OAuth pada panel admin */
 .admin-session-badge {
   display: inline-flex;
   align-items: center;

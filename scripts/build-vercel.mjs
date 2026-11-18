@@ -59,21 +59,30 @@ if (!fs.existsSync(templatePath)) {
 
 // Bangun dist/js/config.js selalu dari template bersih agar kredensial lokal tidak ikut bocor jika env kosong.
 let configSource = fs.readFileSync(templatePath, 'utf8');
-const rawAdminPin = getEnv('ADMIN_PIN');
-const adminPinHash = rawAdminPin
-  ? crypto.createHash('sha256').update(rawAdminPin, 'utf8').digest('hex')
-  : '';
+const rawAdminEmails = getEnv('ADMIN_EMAILS');
+const allowedEmailHashes = rawAdminEmails
+  ? rawAdminEmails
+      .split(',')
+      .map((item) => item.trim().toLowerCase())
+      .filter(Boolean)
+      .map((email) => crypto.createHash('sha256').update(email, 'utf8').digest('hex'))
+  : [];
+
 const replacements = {
   calendarId: getEnv('GCAL_CALENDAR_ID'),
   apiKey: getEnv('GCAL_API_KEY'),
-  oauthClientId: getEnv('GCAL_OAUTH_CLIENT_ID'),
-  pinHash: adminPinHash
+  oauthClientId: getEnv('GCAL_OAUTH_CLIENT_ID')
 };
 
 for (const [field, value] of Object.entries(replacements)) {
   const pattern = new RegExp(`(${field}:\\s*)'[^']*'`);
   configSource = configSource.replace(pattern, () => `${field}: ${JSON.stringify(value)}`);
 }
+
+configSource = configSource.replace(
+  /allowedEmailHashes:\s*\[\s*\]/,
+  () => `allowedEmailHashes: ${JSON.stringify(allowedEmailHashes)}`
+);
 
 fs.writeFileSync(path.join(outDir, 'js', 'config.js'), configSource, 'utf8');
 fs.rmSync(path.join(outDir, 'js', 'config.example.js'), { force: true });

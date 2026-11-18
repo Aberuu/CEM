@@ -52,7 +52,7 @@ googleCalendar: {
 }
 ```
 
-Untuk hosting **Vercel**, jangan commit `js/config.js`. Cukup isi 3 variabel pada *Project Settings -> Environment Variables* (`GCAL_CALENDAR_ID`, `GCAL_API_KEY`, `GCAL_OAUTH_CLIENT_ID`), dan `scripts/build-vercel.mjs` akan menghasilkan `dist/js/config.js` otomatis saat build.
+Untuk hosting **Vercel**, jangan commit `js/config.js`. Cukup isi 4 variabel pada *Project Settings -> Environment Variables* (`GCAL_CALENDAR_ID`, `GCAL_API_KEY`, `GCAL_OAUTH_CLIENT_ID`, `ADMIN_EMAILS`), dan `scripts/build-vercel.mjs` akan menghasilkan `dist/js/config.js` otomatis saat build.
 
 Pastikan pada Google Calendar & Google Cloud Console:
 1. Kalender berstatus **Make available to public** (*See all event details*) di menu *Settings & sharing* agar pengunjung publik bisa membaca jadwal via `apiKey`.

@@ -29,13 +29,11 @@ window.PortalKampus = window.PortalKampus || {};
     qmEditingEventId: '',
     qmBaseEvent: null,
     sessionTimerId: null,
-    workspaceInitialized: false,
-    pinFailedCount: 0,
-    pinCooldownUntil: 0
+    workspaceInitialized: false
   };
 
   var el = {};
-  var applyPinGateState = function () {};
+  var applyAuthGate = function () {};
 
   function padTwo(n) {
     return String(n).padStart(2, '0');
@@ -1234,41 +1232,64 @@ window.PortalKampus = window.PortalKampus || {};
       window.clearInterval(state.sessionTimerId);
       state.sessionTimerId = null;
     }
-    var pinStatus = svc.getAdminPinStatus();
     var authStatus = svc.getAdminAuthStatus();
-    if (!pinStatus.unlocked && !authStatus.signedIn) {
+    if (!authStatus.signedIn) {
       return;
     }
     state.sessionTimerId = window.setInterval(function () {
-      var currentPin = svc.getAdminPinStatus();
-      if (!currentPin.unlocked && el.workspaceShell && !el.workspaceShell.hidden) {
+      var currentAuth = svc.getAdminAuthStatus();
+      if (!currentAuth.signedIn) {
         window.clearInterval(state.sessionTimerId);
         state.sessionTimerId = null;
-        applyPinGateState('Sesi PIN Panel Admin 30 menit telah berakhir. Silakan masukkan PIN kembali.');
+        svc.signOutAdmin({ revoke: false });
+        applyAuthGate('Sesi berakhir, silakan masuk lagi.');
         return;
-      }
-
-      var currentAuth = svc.getAdminAuthStatus();
-      var oauthWasActive = Boolean(document.getElementById('admin-session-countdown'));
-      if (oauthWasActive && !currentAuth.signedIn) {
-        svc.signOutAdmin();
-        renderStatusSummary();
-        syncFormModeControls();
-        renderConnectedList();
-        showActionFeedback('Sesi login Google 30 menit telah berakhir. Silakan login kembali.', true);
-        showToast('Sesi login Google 30 menit telah berakhir. Silakan masuk kembali.', { isError: true });
-        return;
-      }
-
-      var pinBadge = document.getElementById('admin-pin-countdown');
-      if (pinBadge && currentPin.unlocked) {
-        pinBadge.textContent = 'Panel 30m: ' + formatSessionCountdown(currentPin.remainingMs);
       }
       var badge = document.getElementById('admin-session-countdown');
-      if (badge && currentAuth.signedIn) {
-        badge.textContent = 'Google 30m: ' + formatSessionCountdown(currentAuth.remainingMs);
+      if (badge) {
+        badge.textContent = 'Sesi: ' + formatSessionCountdown(currentAuth.remainingMs);
       }
     }, 1000);
+  }
+
+  function renderAllowedAccountsList() {
+    if (!el.accountsList) {
+      return;
+    }
+    var accounts = svc.getAllowedAdminAccounts();
+    var auth = svc.getAdminAuthStatus();
+
+    if (accounts.length === 0) {
+      el.accountsList.innerHTML =
+        '<p class="table-sub">Belum ada email admin yang dikunci. Akun Google pertama yang masuk akan otomatis terdaftar sebagai admin utama.</p>';
+      return;
+    }
+
+    el.accountsList.innerHTML = accounts
+      .map(function (acc) {
+        var isCurrent = Boolean(auth.signedIn && auth.emailHash && acc.emailHash === auth.emailHash);
+        var label = acc.email
+          ? svc.escapeHtml(acc.email) + ' (' + svc.escapeHtml(acc.emailMasked) + ')'
+          : svc.escapeHtml(acc.emailMasked);
+        var sourceLabel = acc.source === 'config' ? 'Konfigurasi / Vercel' : 'Ditambahkan di Panel';
+        var canRemove = acc.removable && accounts.length > 1;
+        return (
+          '<div class="admin-account-item">' +
+            '<div class="admin-account-item__info">' +
+              '<span class="admin-account-item__email">' + label + '</span>' +
+              '<div class="admin-account-item__badges">' +
+                (isCurrent ? '<span class="badge badge--open">Sedang Login</span>' : '') +
+                '<span class="badge badge--cat">' + svc.escapeHtml(sourceLabel) + '</span>' +
+              '</div>' +
+            '</div>' +
+            (canRemove
+              ? '<button type="button" class="btn btn-outline btn-compact btn-danger-outline" data-remove-admin-hash="' +
+                svc.escapeHtml(acc.emailHash) + '">Hapus Akses</button>'
+              : '') +
+          '</div>'
+        );
+      })
+      .join('');
   }
 
   function renderStatusSummary() {
@@ -1279,7 +1300,6 @@ window.PortalKampus = window.PortalKampus || {};
     var draftCount = state.localDrafts.length;
     var isLive = state.payload.source === 'google';
     var auth = svc.getAdminAuthStatus();
-    var pinStatus = svc.getAdminPinStatus();
 
     var statusLabel = isLive
       ? 'Terhubung Live ke Google Calendar API'
@@ -1290,30 +1310,25 @@ window.PortalKampus = window.PortalKampus || {};
     var authNote = '';
     var authBtnHtml = '';
     var sessionBadgeHtml = '';
-    if (pinStatus.unlocked) {
-      sessionBadgeHtml +=
-        ' <span id="admin-pin-countdown" class="admin-session-badge">Panel 30m: ' +
-        svc.escapeHtml(formatSessionCountdown(pinStatus.remainingMs)) +
-        '</span>';
-    }
     if (!auth.protocolSupported) {
       authNote = 'Login OAuth Google butuh Live Server / GitHub Pages (http/https); mode template & draft lokal aktif.';
     } else if (!auth.configured) {
       authNote = 'OAuth Admin belum aktif: drag & quick-edit tersimpan sebagai Draft Lokal, atau klik Buka di Google Calendar untuk terbitkan.';
       authBtnHtml = '<a class="btn btn-outline btn-compact" href="#setup-gcal">Setup OAuth Client ID</a>';
     } else if (auth.signedIn) {
-      authNote = 'Sesi Login Admin Google OAuth aktif (Create, Drag Move/Resize, dan Delete langsung aktif).';
-      sessionBadgeHtml +=
-        ' <span id="admin-session-countdown" class="admin-session-badge">Google 30m: ' +
+      var who = auth.emailMasked ? ' (' + auth.emailMasked + ')' : '';
+      authNote = 'Sesi Google SSO aktif' + who + ' · Create, Drag Move/Resize, dan Delete langsung aktif.';
+      sessionBadgeHtml =
+        ' <span id="admin-session-countdown" class="admin-session-badge">Sesi: ' +
         svc.escapeHtml(formatSessionCountdown(auth.remainingMs)) +
         '</span>';
       authBtnHtml =
         '<button type="button" class="btn btn-outline btn-compact" id="admin-oauth-switch-btn">Ganti Akun Google</button>' +
-        '<button type="button" class="btn btn-outline btn-compact" id="admin-oauth-logout-btn">Keluar Sesi Google</button>';
+        '<button type="button" class="btn btn-outline btn-compact" id="admin-oauth-logout-btn">Keluar</button>';
     } else {
       var currentOrigin = window.location && window.location.origin ? window.location.origin : '';
       authNote = 'Klik Masuk dengan Google untuk memilih akun admin. Pastikan origin saat ini (' + currentOrigin + ') terdaftar persis di Authorized JavaScript origins Google Cloud Console.';
-      authBtnHtml = '<button type="button" class="btn btn-accent btn-compact" id="admin-oauth-login-btn">Masuk dengan Google (Admin)</button>';
+      authBtnHtml = '<button type="button" class="btn btn-accent btn-compact" id="admin-oauth-login-btn">Masuk dengan Google</button>';
     }
 
     el.statusSummary.innerHTML =
@@ -1323,6 +1338,7 @@ window.PortalKampus = window.PortalKampus || {};
           '<p class="admin-status-meta">' +
             'Total agenda terbaca: <strong>' + events.length + '</strong> event' +
             (draftCount > 0 ? ' (' + draftCount + ' draft lokal)' : '') +
+            ' · Akun admin terdaftar: <strong>' + auth.allowedCount + '</strong>' +
             (state.payload.errorMessage ? ' · Error: ' + svc.escapeHtml(state.payload.errorMessage) : '') +
           '</p>' +
           '<p class="admin-status-meta">' + svc.escapeHtml(authNote) + sessionBadgeHtml + '</p>' +
@@ -1337,7 +1353,6 @@ window.PortalKampus = window.PortalKampus || {};
             : '') +
           '<button type="button" class="btn btn-outline btn-compact" id="admin-refresh-btn">Muat Ulang Data</button>' +
           '<a class="btn btn-outline btn-compact" href="https://calendar.google.com/" target="_blank" rel="noopener">Buka Google Calendar</a>' +
-          '<button type="button" class="btn btn-outline btn-compact" id="admin-lock-panel-btn">Kunci Panel</button>' +
         '</div>' +
       '</div>';
 
@@ -1367,37 +1382,27 @@ window.PortalKampus = window.PortalKampus || {};
     var loginBtn = document.getElementById('admin-oauth-login-btn');
     if (loginBtn) {
       loginBtn.addEventListener('click', function () {
-        handleAdminLogin();
+        handleAdminLogin({ selectAccount: false });
       });
     }
 
     var switchBtn = document.getElementById('admin-oauth-switch-btn');
     if (switchBtn) {
       switchBtn.addEventListener('click', function () {
-        handleAdminLogin();
+        handleAdminLogin({ selectAccount: true });
       });
     }
 
     var logoutBtn = document.getElementById('admin-oauth-logout-btn');
     if (logoutBtn) {
       logoutBtn.addEventListener('click', function () {
-        svc.signOutAdmin();
+        svc.signOutAdmin({ revoke: true });
         syncSessionCountdown();
-        renderStatusSummary();
-        syncFormModeControls();
-        renderConnectedList();
-        showActionFeedback('Sesi admin Google OAuth telah ditutup.', false);
+        applyAuthGate('Sesi admin Google telah ditutup.');
       });
     }
 
-    var lockPanelBtn = document.getElementById('admin-lock-panel-btn');
-    if (lockPanelBtn) {
-      lockPanelBtn.addEventListener('click', function () {
-        svc.lockAdminPanel();
-        applyPinGateState('');
-      });
-    }
-
+    renderAllowedAccountsList();
     syncSessionCountdown();
   }
 
@@ -1432,18 +1437,40 @@ window.PortalKampus = window.PortalKampus || {};
     }
   }
 
-  async function handleAdminLogin() {
+  async function handleAdminLogin(options) {
+    var opts = options || {};
+    if (el.ssoLoginBtn) el.ssoLoginBtn.disabled = true;
+    if (el.ssoSelectBtn) el.ssoSelectBtn.disabled = true;
     try {
-      await svc.requestAdminToken({ silent: false });
+      var authResult = await svc.requestAdminToken({
+        selectAccount: Boolean(opts.selectAccount)
+      });
+      applyAuthGate('');
       renderStatusSummary();
       syncFormModeControls();
       var draftCount = state.localDrafts.length;
-      showToast(draftCount > 0
-        ? 'Login admin Google berhasil. Klik "Kirim ' + draftCount + ' Draft ke Google Calendar" di atas atau seret di kalender untuk membuat jadwal baru.'
-        : 'Login admin Google berhasil. Create, Drag Move/Resize, dan Delete langsung aktif.');
+      var bootstrapNote = authResult && authResult.bootstrapped
+        ? ' Akun Anda otomatis didaftarkan sebagai admin pertama.'
+        : '';
+      showToast(
+        (draftCount > 0
+          ? 'Login Google SSO berhasil (' + (authResult.emailMasked || 'Admin') + '). Klik "Kirim ' + draftCount + ' Draft ke Google Calendar" di atas.'
+          : 'Login Google SSO berhasil (' + (authResult.emailMasked || 'Admin') + '). Create, Drag Move/Resize, dan Delete langsung aktif.') +
+          bootstrapNote
+      );
       await loadConnectedSchedule(true);
     } catch (err) {
-      showToast('Login Google gagal: ' + (err && err.message ? err.message : 'Dibatalkan.'), { isError: true });
+      var msg = err && err.message ? err.message : 'Login dibatalkan.';
+      if (!svc.getAdminAuthStatus().signedIn) {
+        applyAuthGate(msg);
+      } else {
+        showToast('Login Google gagal: ' + msg, { isError: true });
+      }
+    } finally {
+      var authNow = svc.getAdminAuthStatus();
+      var canLogin = authNow.protocolSupported && authNow.configured;
+      if (el.ssoLoginBtn) el.ssoLoginBtn.disabled = !canLogin;
+      if (el.ssoSelectBtn) el.ssoSelectBtn.disabled = !canLogin;
     }
   }
 
@@ -1758,25 +1785,42 @@ window.PortalKampus = window.PortalKampus || {};
       return;
     }
 
-    el.pinGate = document.getElementById('admin-pin-gate');
+    el.authGate = document.getElementById('admin-auth-gate');
     el.workspaceShell = document.getElementById('admin-workspace-shell');
-    el.pinForm = document.getElementById('admin-pin-form');
-    el.pinInput = document.getElementById('admin-pin-input');
-    el.pinToggle = document.getElementById('admin-pin-toggle');
-    el.pinError = document.getElementById('admin-pin-error');
-    el.pinSubmit = document.getElementById('admin-pin-submit');
+    el.authError = document.getElementById('admin-auth-error');
+    el.authDesc = document.getElementById('admin-auth-desc');
+    el.ssoLoginBtn = document.getElementById('admin-sso-login-btn');
+    el.ssoSelectBtn = document.getElementById('admin-sso-select-btn');
+    el.accountsList = document.getElementById('admin-accounts-list');
+    el.addAccountForm = document.getElementById('admin-add-account-form');
+    el.newAdminEmail = document.getElementById('adm-new-admin-email');
+    el.copyEnvEmailsBtn = document.getElementById('adm-copy-env-emails-btn');
+    el.accountFeedback = document.getElementById('adm-account-feedback');
 
-    function setPinFeedback(message, isError) {
-      if (!el.pinError) {
+    function setAuthGateFeedback(message, isError) {
+      if (!el.authError) {
         return;
       }
       if (!message) {
-        el.pinError.className = 'admin-feedback';
-        el.pinError.textContent = '';
+        el.authError.className = 'admin-feedback';
+        el.authError.textContent = '';
         return;
       }
-      el.pinError.className = 'admin-feedback ' + (isError ? 'admin-feedback--error' : 'admin-feedback--ok');
-      el.pinError.textContent = message;
+      el.authError.className = 'admin-feedback ' + (isError ? 'admin-feedback--error' : 'admin-feedback--ok');
+      el.authError.textContent = message;
+    }
+
+    function setAccountFeedback(message, isError) {
+      if (!el.accountFeedback) {
+        return;
+      }
+      if (!message) {
+        el.accountFeedback.className = 'admin-feedback';
+        el.accountFeedback.textContent = '';
+        return;
+      }
+      el.accountFeedback.className = 'admin-feedback ' + (isError ? 'admin-feedback--error' : 'admin-feedback--ok');
+      el.accountFeedback.textContent = message;
     }
 
     function ensureWorkspaceInitialized() {
@@ -1800,12 +1844,12 @@ window.PortalKampus = window.PortalKampus || {};
       loadConnectedSchedule(false);
     }
 
-    applyPinGateState = function (reasonMessage) {
-      var pinStatus = svc.getAdminPinStatus();
-      if (pinStatus.unlocked) {
-        if (el.pinGate) el.pinGate.hidden = true;
+    applyAuthGate = function (reasonMessage) {
+      var authStatus = svc.getAdminAuthStatus();
+      if (authStatus.signedIn) {
+        if (el.authGate) el.authGate.hidden = true;
         if (el.workspaceShell) el.workspaceShell.hidden = false;
-        setPinFeedback('', false);
+        setAuthGateFeedback('', false);
         ensureWorkspaceInitialized();
         renderStatusSummary();
         syncSessionCountdown();
@@ -1813,75 +1857,107 @@ window.PortalKampus = window.PortalKampus || {};
       }
 
       if (el.workspaceShell) el.workspaceShell.hidden = true;
-      if (el.pinGate) el.pinGate.hidden = false;
+      if (el.authGate) el.authGate.hidden = false;
       syncSessionCountdown();
-      if (el.pinInput) {
-        el.pinInput.value = '';
-      }
-      if (!pinStatus.configured) {
-        setPinFeedback('ADMIN_PIN belum diatur pada Environment Variable Vercel atau js/config.js.', true);
-        if (el.pinSubmit) el.pinSubmit.disabled = true;
+
+      var canLogin = authStatus.protocolSupported && authStatus.configured && (authStatus.allowListConfigured || authStatus.canBootstrapLocal);
+      if (el.ssoLoginBtn) el.ssoLoginBtn.disabled = !canLogin;
+      if (el.ssoSelectBtn) el.ssoSelectBtn.disabled = !canLogin;
+
+      if (!authStatus.protocolSupported) {
+        setAuthGateFeedback('Login Google OAuth membutuhkan Live Server atau hosting http:// / https:// (bukan file://).', true);
+      } else if (!authStatus.configured) {
+        setAuthGateFeedback('oauthClientId belum diatur pada Environment Variable Vercel atau js/config.js.', true);
+      } else if (!authStatus.allowListConfigured && !authStatus.canBootstrapLocal) {
+        setAuthGateFeedback('Daftar admin (ADMIN_EMAILS) belum diatur pada Environment Variable Vercel.', true);
+      } else if (reasonMessage) {
+        setAuthGateFeedback(reasonMessage, true);
+      } else if (!authStatus.allowListConfigured && authStatus.canBootstrapLocal) {
+        setAuthGateFeedback('Mode setup lokal: login Google pertama Anda akan otomatis didaftarkan sebagai admin utama.', false);
       } else {
-        if (el.pinSubmit) el.pinSubmit.disabled = false;
-        if (reasonMessage) {
-          setPinFeedback(reasonMessage, true);
-        } else {
-          setPinFeedback('', false);
-        }
-      }
-      if (el.pinInput && pinStatus.configured) {
-        el.pinInput.focus();
+        setAuthGateFeedback('', false);
       }
     };
 
-    if (el.pinToggle && el.pinInput) {
-      el.pinToggle.addEventListener('click', function () {
-        var nextShow = el.pinInput.type === 'password';
-        el.pinInput.type = nextShow ? 'text' : 'password';
-        el.pinToggle.setAttribute('aria-pressed', nextShow ? 'true' : 'false');
-        el.pinToggle.textContent = nextShow ? 'Sembunyikan' : 'Lihat';
+    if (el.ssoLoginBtn) {
+      el.ssoLoginBtn.addEventListener('click', function () {
+        handleAdminLogin({ selectAccount: false });
       });
     }
 
-    if (el.pinForm) {
-      el.pinForm.addEventListener('submit', async function (event) {
+    if (el.ssoSelectBtn) {
+      el.ssoSelectBtn.addEventListener('click', function () {
+        handleAdminLogin({ selectAccount: true });
+      });
+    }
+
+    if (el.addAccountForm) {
+      el.addAccountForm.addEventListener('submit', function (event) {
         event.preventDefault();
-        if (Date.now() < state.pinCooldownUntil) {
-          var waitSecs = Math.max(1, Math.ceil((state.pinCooldownUntil - Date.now()) / 1000));
-          setPinFeedback('Terlalu banyak percobaan gagal. Coba lagi dalam ' + waitSecs + ' detik.', true);
+        var rawEmail = el.newAdminEmail ? el.newAdminEmail.value : '';
+        var res = svc.addAllowedAdminEmail(rawEmail);
+        if (!res.ok) {
+          setAccountFeedback(res.error || 'Gagal menambahkan email admin.', true);
           return;
         }
-        var rawPin = el.pinInput ? el.pinInput.value : '';
-        if (el.pinSubmit) el.pinSubmit.disabled = true;
-        try {
-          var result = await svc.verifyAdminPin(rawPin);
-          if (result && result.ok) {
-            state.pinFailedCount = 0;
-            state.pinCooldownUntil = 0;
-            applyPinGateState('');
-            return;
-          }
-          state.pinFailedCount += 1;
-          if (state.pinFailedCount >= 5) {
-            state.pinCooldownUntil = Date.now() + 15000;
-            state.pinFailedCount = 0;
-            setPinFeedback('Terlalu banyak percobaan salah. Tunggu 15 detik sebelum mencoba lagi.', true);
-          } else {
-            setPinFeedback((result && result.error) || 'PIN Admin tidak sesuai.', true);
-          }
-          if (el.pinInput) {
-            el.pinInput.select();
-            el.pinInput.focus();
-          }
-        } finally {
-          if (el.pinSubmit && svc.getAdminPinStatus().configured) {
-            el.pinSubmit.disabled = false;
-          }
+        if (el.newAdminEmail) {
+          el.newAdminEmail.value = '';
+        }
+        renderAllowedAccountsList();
+        renderStatusSummary();
+        setAccountFeedback('Akun ' + res.entry.email + ' berhasil ditambahkan sebagai admin.', false);
+      });
+    }
+
+    if (el.accountsList) {
+      el.accountsList.addEventListener('click', function (event) {
+        var rmBtn = event.target.closest('button[data-remove-admin-hash]');
+        if (!rmBtn) {
+          return;
+        }
+        var targetHash = rmBtn.getAttribute('data-remove-admin-hash');
+        var res = svc.removeAllowedAdminEmail(targetHash);
+        if (!res.ok) {
+          setAccountFeedback(res.error || 'Gagal menghapus akun admin.', true);
+          return;
+        }
+        if (!svc.getAdminAuthStatus().signedIn) {
+          applyAuthGate('Akses akun Anda telah dicabut.');
+          return;
+        }
+        renderAllowedAccountsList();
+        renderStatusSummary();
+        setAccountFeedback('Akses akun admin berhasil dihapus.', false);
+      });
+    }
+
+    if (el.copyEnvEmailsBtn) {
+      el.copyEnvEmailsBtn.addEventListener('click', function () {
+        var emails = svc.getAllowedAdminAccounts()
+          .map(function (acc) { return acc.email; })
+          .filter(Boolean);
+        var auth = svc.getAdminAuthStatus();
+        if (auth.email && emails.indexOf(auth.email) === -1) {
+          emails.push(auth.email);
+        }
+        if (emails.length === 0) {
+          setAccountFeedback('Belum ada alamat email plain yang bisa disalin.', true);
+          return;
+        }
+        var envLine = 'ADMIN_EMAILS=' + emails.join(',');
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(envLine).then(function () {
+            setAccountFeedback('Tersalin ke clipboard: ' + envLine, false);
+          }).catch(function () {
+            setAccountFeedback('Salin manual: ' + envLine, false);
+          });
+        } else {
+          setAccountFeedback('Salin manual: ' + envLine, false);
         }
       });
     }
 
-    applyPinGateState('');
+    applyAuthGate('');
 
     el.form.addEventListener('input', updatePreview);
     el.form.addEventListener('change', updatePreview);
@@ -2011,15 +2087,13 @@ window.PortalKampus = window.PortalKampus || {};
       });
     }
 
-    // Sinkronkan sesi PIN panel dan sesi Google OAuth antar-tab saat status berubah.
+    // Sinkronkan sesi Google SSO dan daftar akun admin antar-tab saat status berubah.
     window.addEventListener('storage', function (event) {
-      if (!event.key || event.key === svc.getAdminPinSessionKey()) {
-        svc.reloadAdminPinSession();
-        applyPinGateState('Sesi panel admin dikunci atau berakhir di tab lain.');
-      }
-      if (!event.key || event.key === svc.getAdminSessionKey()) {
+      if (!event.key || event.key === svc.getAdminSessionKey() || event.key === svc.getAdminAllowedEmailsKey()) {
         svc.reloadAdminSession();
-        if (svc.getAdminPinStatus().unlocked) {
+        if (!svc.getAdminAuthStatus().signedIn) {
+          applyAuthGate('Sesi admin berakhir atau diubah di tab lain.');
+        } else {
           renderStatusSummary();
           syncFormModeControls();
           renderConnectedList();

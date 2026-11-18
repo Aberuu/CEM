@@ -280,17 +280,17 @@ window.PortalKampus = window.PortalKampus || {};
     var activeKey = '';
 
     function syncRingGeometry() {
-      var r = brand.getBoundingClientRect();
-      var w = Math.max(40, Math.round(r.width + 4));
-      var h = Math.max(40, Math.round(r.height + 4));
+      var r = ringSvg.getBoundingClientRect();
+      var w = Math.max(40, r.width);
+      var h = Math.max(40, r.height);
       ringSvg.setAttribute('viewBox', '0 0 ' + w + ' ' + h);
       [trackRect, progressRect].forEach(function (rect) {
-        rect.setAttribute('x', '1.5');
-        rect.setAttribute('y', '1.5');
-        rect.setAttribute('width', String(Math.max(10, w - 3)));
-        rect.setAttribute('height', String(Math.max(10, h - 3)));
-        rect.setAttribute('rx', '11');
-        rect.setAttribute('ry', '11');
+        rect.setAttribute('x', '1');
+        rect.setAttribute('y', '1');
+        rect.setAttribute('width', String(Math.max(10, w - 2)));
+        rect.setAttribute('height', String(Math.max(10, h - 2)));
+        rect.setAttribute('rx', '9.5');
+        rect.setAttribute('ry', '9.5');
       });
     }
 

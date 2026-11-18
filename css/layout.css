@@ -74,9 +74,10 @@
 /* Indikator loading border saat logo ditahan untuk masuk panel admin */
 .brand-hold-ring {
   position: absolute;
-  inset: -2px;
-  width: calc(100% + 4px);
-  height: calc(100% + 4px);
+  inset: -1px;
+  width: calc(100% + 2px);
+  height: calc(100% + 2px);
+  display: block;
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.14s ease;
@@ -87,25 +88,27 @@
   opacity: 1;
 }
 
-.brand-mark.is-holding {
-  background-color: rgba(11, 30, 84, 0.96);
-  border-color: rgba(255, 255, 255, 0.2);
+.brand-mark.is-holding,
+.brand-mark.is-holding:hover {
+  background: rgb(35 59 129);
+  border-color: transparent;
 }
 
 .brand-mark.is-hold-complete {
-  background-color: rgba(17, 80, 239, 0.96);
+  background: rgb(35 59 129);
+  border-color: transparent;
 }
 
 .brand-hold-ring__track {
   fill: none;
-  stroke: rgba(255, 255, 255, 0.26);
-  stroke-width: 2.5px;
+  stroke: rgba(255, 255, 255, 0.28);
+  stroke-width: 2px;
 }
 
 .brand-hold-ring__progress {
   fill: none;
   stroke: #ffffff;
-  stroke-width: 2.5px;
+  stroke-width: 3px;
   stroke-linecap: round;
   stroke-dasharray: 100;
   stroke-dashoffset: 100;

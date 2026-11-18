@@ -10,16 +10,16 @@ window.PortalKampus.CONFIG = {
     calendarId: '',
     apiKey: '',
     oauthClientId: '',
-    oauthSessionMinutes: 30,
     timeZone: 'Asia/Jakarta',
     maxResults: 100,
     cacheMinutes: 5
   },
 
-  // Kredensial gerbang panel admin (hash SHA-256 diisi otomatis dari Env Var ADMIN_PIN saat build Vercel).
+  // Kredensial SSO Google untuk gerbang panel admin (hash SHA-256 diisi otomatis dari Env Var ADMIN_EMAILS saat build Vercel).
   adminAuth: {
-    pinHash: '',
-    sessionMinutes: 30
+    allowedEmailHashes: [],
+    allowedEmails: [],
+    maxSessionMinutes: 55
   },
 
   // Pengaturan rentang jam dan grid drag untuk Timeline Minggu/Hari (dipakai di calendar.html dan admin.html).
@@ -110,7 +110,7 @@ window.PortalKampus.CONFIG = {
     eventsCache: 'portal_kampus_gcal_cache_v1',
     adminDrafts: 'portal_kampus_admin_drafts_v1',
     adminSession: 'portal_kampus_admin_session_v1',
-    adminPinSession: 'portal_kampus_admin_pin_session_v1'
+    adminAllowedEmails: 'portal_kampus_admin_allowed_emails_v1'
   },
 
   // Kamus teks singkat untuk elemen yang dibuat oleh JavaScript agar tombol bahasa ID / EN tetap konsisten.

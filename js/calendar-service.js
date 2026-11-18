@@ -375,50 +375,32 @@ window.PortalKampus = window.PortalKampus || {};
     );
   }
 
-  var DEFAULT_SESSION_MINUTES = 30;
+  var DEFAULT_MAX_SESSION_MINUTES = 55;
   var TOKEN_SAFETY_BUFFER_MS = 15000;
+  var LEGACY_PIN_SESSION_KEY = 'portal_kampus_admin_pin_session_v1';
 
   var authState = {
     accessToken: '',
     expiresAt: 0,
     loggedInAt: 0,
+    email: '',
+    emailMasked: '',
+    emailHash: '',
     tokenClient: null
   };
 
-  var pinSessionState = {
-    verified: false,
-    pinHash: '',
-    expiresAt: 0,
-    loggedInAt: 0
-  };
-
-  function getSessionMinutes() {
-    var gc = CONFIG.googleCalendar || {};
-    var minutes = Number(gc.oauthSessionMinutes || DEFAULT_SESSION_MINUTES);
-    return Number.isFinite(minutes) && minutes > 0 ? minutes : DEFAULT_SESSION_MINUTES;
-  }
-
-  function getPinSessionMinutes() {
+  function getMaxSessionMinutes() {
     var aa = CONFIG.adminAuth || {};
-    var minutes = Number(aa.sessionMinutes || DEFAULT_SESSION_MINUTES);
-    return Number.isFinite(minutes) && minutes > 0 ? minutes : DEFAULT_SESSION_MINUTES;
-  }
-
-  function getConfiguredPinHash() {
-    var aa = CONFIG.adminAuth || {};
-    return String(aa.pinHash || '').trim().toLowerCase();
-  }
-
-  function isAdminPinConfigured() {
-    return /^[a-f0-9]{64}$/.test(getConfiguredPinHash());
+    var minutes = Number(aa.maxSessionMinutes || DEFAULT_MAX_SESSION_MINUTES);
+    return Number.isFinite(minutes) && minutes > 0 ? minutes : DEFAULT_MAX_SESSION_MINUTES;
   }
 
   function getAdminSessionKey() {
     return (CONFIG.storageKeys && CONFIG.storageKeys.adminSession) || 'portal_kampus_admin_session_v1';
   }
 
-  function getAdminPinSessionKey() {
-    return (CONFIG.storageKeys && CONFIG.storageKeys.adminPinSession) || 'portal_kampus_admin_pin_session_v1';
+  function getAdminAllowedEmailsKey() {
+    return (CONFIG.storageKeys && CONFIG.storageKeys.adminAllowedEmails) || 'portal_kampus_admin_allowed_emails_v1';
   }
 
   function writeLocalJson(key, value) {
@@ -446,90 +428,16 @@ window.PortalKampus = window.PortalKampus || {};
     }
   }
 
-  function clearPersistedAdminSession() {
-    removeLocalKey(getAdminSessionKey());
-  }
-
-  function persistAdminSession() {
-    writeLocalJson(getAdminSessionKey(), {
-      accessToken: authState.accessToken,
-      expiresAt: authState.expiresAt,
-      loggedInAt: authState.loggedInAt
-    });
-  }
-
-  function resetAuthStateMemory() {
-    authState.accessToken = '';
-    authState.expiresAt = 0;
-    authState.loggedInAt = 0;
-  }
-
-  function loadAdminSession() {
-    var parsed = readLocalJson(getAdminSessionKey());
-    var token = parsed && typeof parsed.accessToken === 'string' ? parsed.accessToken : '';
-    var expiresAt = Number(parsed && parsed.expiresAt);
-    if (!token || !Number.isFinite(expiresAt) || Date.now() >= expiresAt) {
-      resetAuthStateMemory();
-      clearPersistedAdminSession();
-      return;
+  function maskEmail(rawEmail) {
+    var clean = String(rawEmail || '').trim().toLowerCase();
+    var atIdx = clean.indexOf('@');
+    if (atIdx <= 0) {
+      return clean;
     }
-    authState.accessToken = token;
-    authState.expiresAt = expiresAt;
-    authState.loggedInAt = Number(parsed && parsed.loggedInAt) || 0;
-  }
-
-  function resetPinSessionMemory() {
-    pinSessionState.verified = false;
-    pinSessionState.pinHash = '';
-    pinSessionState.expiresAt = 0;
-    pinSessionState.loggedInAt = 0;
-  }
-
-  function loadAdminPinSession() {
-    var expectedHash = getConfiguredPinHash();
-    var parsed = readLocalJson(getAdminPinSessionKey());
-    var expiresAt = Number(parsed && parsed.expiresAt);
-    var storedHash = parsed && typeof parsed.pinHash === 'string' ? parsed.pinHash : '';
-    if (
-      !parsed ||
-      !parsed.verified ||
-      !expectedHash ||
-      storedHash !== expectedHash ||
-      !Number.isFinite(expiresAt) ||
-      Date.now() >= expiresAt
-    ) {
-      resetPinSessionMemory();
-      removeLocalKey(getAdminPinSessionKey());
-      return;
-    }
-    pinSessionState.verified = true;
-    pinSessionState.pinHash = storedHash;
-    pinSessionState.expiresAt = expiresAt;
-    pinSessionState.loggedInAt = Number(parsed.loggedInAt) || 0;
-  }
-
-  function hasValidAdminPinSession() {
-    if (!pinSessionState.verified) {
-      return false;
-    }
-    if (Date.now() >= pinSessionState.expiresAt || pinSessionState.pinHash !== getConfiguredPinHash()) {
-      resetPinSessionMemory();
-      removeLocalKey(getAdminPinSessionKey());
-      return false;
-    }
-    return true;
-  }
-
-  function getAdminPinStatus() {
-    var unlocked = hasValidAdminPinSession();
-    return {
-      configured: isAdminPinConfigured(),
-      unlocked: unlocked,
-      expiresAt: unlocked ? pinSessionState.expiresAt : 0,
-      loggedInAt: unlocked ? pinSessionState.loggedInAt : 0,
-      remainingMs: unlocked ? Math.max(0, pinSessionState.expiresAt - Date.now()) : 0,
-      sessionMinutes: getPinSessionMinutes()
-    };
+    var local = clean.slice(0, atIdx);
+    var domain = clean.slice(atIdx + 1);
+    var visible = local.length <= 2 ? local.slice(0, 1) : local.slice(0, 2);
+    return visible + '***@' + domain;
   }
 
   function sha256FallbackHex(text) {
@@ -602,44 +510,197 @@ window.PortalKampus = window.PortalKampus || {};
     return sha256FallbackHex(text);
   }
 
-  async function verifyAdminPin(rawPin) {
-    if (!isAdminPinConfigured()) {
-      return { ok: false, error: 'PIN Admin belum dikonfigurasi pada Env Var ADMIN_PIN atau js/config.js.' };
+  function loadStoredAllowedAdmins() {
+    var list = readLocalJson(getAdminAllowedEmailsKey());
+    if (!Array.isArray(list)) {
+      return [];
     }
-    var trimmed = String(rawPin || '').trim();
-    if (!trimmed) {
-      return { ok: false, error: 'Masukkan PIN Admin terlebih dahulu.' };
-    }
-    var inputHash = await sha256Hex(trimmed);
-    var expectedHash = getConfiguredPinHash();
-    var diff = inputHash.length ^ expectedHash.length;
-    for (var i = 0; i < inputHash.length && i < expectedHash.length; i++) {
-      diff |= inputHash.charCodeAt(i) ^ expectedHash.charCodeAt(i);
-    }
-    if (diff !== 0) {
-      return { ok: false, error: 'PIN Admin tidak sesuai.' };
-    }
-    var now = Date.now();
-    pinSessionState.verified = true;
-    pinSessionState.pinHash = expectedHash;
-    pinSessionState.loggedInAt = now;
-    pinSessionState.expiresAt = now + getPinSessionMinutes() * 60 * 1000;
-    writeLocalJson(getAdminPinSessionKey(), {
-      verified: true,
-      pinHash: expectedHash,
-      loggedInAt: pinSessionState.loggedInAt,
-      expiresAt: pinSessionState.expiresAt
-    });
-    return { ok: true, status: getAdminPinStatus() };
+    return list
+      .filter(function (item) {
+        return item && typeof item.emailHash === 'string' && /^[a-f0-9]{64}$/.test(item.emailHash);
+      })
+      .map(function (item) {
+        var email = typeof item.email === 'string' ? item.email.trim().toLowerCase() : '';
+        return {
+          email: email,
+          emailMasked: item.emailMasked || (email ? maskEmail(email) : 'admin***'),
+          emailHash: item.emailHash.toLowerCase(),
+          addedAt: Number(item.addedAt) || 0,
+          source: 'panel',
+          removable: true
+        };
+      });
   }
 
-  function lockAdminPanel() {
-    resetPinSessionMemory();
-    removeLocalKey(getAdminPinSessionKey());
+  function getAllowedAdminAccounts() {
+    var aa = CONFIG.adminAuth || {};
+    var seenHashes = {};
+    var combined = [];
+
+    var configEmails = Array.isArray(aa.allowedEmails) ? aa.allowedEmails : [];
+    configEmails.forEach(function (raw) {
+      var clean = String(raw || '').trim().toLowerCase();
+      if (!clean || clean.indexOf('@') <= 0) {
+        return;
+      }
+      var hash = sha256FallbackHex(clean);
+      if (!seenHashes[hash]) {
+        seenHashes[hash] = true;
+        combined.push({
+          email: clean,
+          emailMasked: maskEmail(clean),
+          emailHash: hash,
+          addedAt: 0,
+          source: 'config',
+          removable: false
+        });
+      }
+    });
+
+    var configHashes = Array.isArray(aa.allowedEmailHashes) ? aa.allowedEmailHashes : [];
+    configHashes.forEach(function (rawHash, idx) {
+      var cleanHash = String(rawHash || '').trim().toLowerCase();
+      if (!/^[a-f0-9]{64}$/.test(cleanHash) || seenHashes[cleanHash]) {
+        return;
+      }
+      seenHashes[cleanHash] = true;
+      combined.push({
+        email: '',
+        emailMasked: 'Admin Env #' + (idx + 1) + ' (' + cleanHash.slice(0, 8) + ')',
+        emailHash: cleanHash,
+        addedAt: 0,
+        source: 'config',
+        removable: false
+      });
+    });
+
+    loadStoredAllowedAdmins().forEach(function (item) {
+      if (!seenHashes[item.emailHash]) {
+        seenHashes[item.emailHash] = true;
+        combined.push(item);
+      }
+    });
+
+    return combined;
+  }
+
+  function isEmailAllowed(rawEmail) {
+    var clean = String(rawEmail || '').trim().toLowerCase();
+    if (!clean) {
+      return { allowed: false, emptyAllowlist: false, emailHash: '' };
+    }
+    var hash = sha256FallbackHex(clean);
+    var accounts = getAllowedAdminAccounts();
+    if (accounts.length === 0) {
+      return { allowed: false, emptyAllowlist: true, emailHash: hash };
+    }
+    var matched = accounts.some(function (acc) {
+      return acc.emailHash === hash;
+    });
+    return { allowed: matched, emptyAllowlist: false, emailHash: hash };
+  }
+
+  function addAllowedAdminEmail(rawEmail) {
+    var clean = String(rawEmail || '').trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clean)) {
+      return { ok: false, error: 'Format email Google tidak valid.' };
+    }
+    var hash = sha256FallbackHex(clean);
+    var existing = getAllowedAdminAccounts().some(function (acc) {
+      return acc.emailHash === hash;
+    });
+    if (existing) {
+      return { ok: false, error: 'Email tersebut sudah terdaftar sebagai admin.' };
+    }
+    var stored = loadStoredAllowedAdmins();
+    var entry = {
+      email: clean,
+      emailMasked: maskEmail(clean),
+      emailHash: hash,
+      addedAt: Date.now(),
+      source: 'panel',
+      removable: true
+    };
+    stored.push(entry);
+    writeLocalJson(getAdminAllowedEmailsKey(), stored);
+    return { ok: true, entry: entry, accounts: getAllowedAdminAccounts() };
+  }
+
+  function removeAllowedAdminEmail(emailHash) {
+    var cleanHash = String(emailHash || '').trim().toLowerCase();
+    var allAccounts = getAllowedAdminAccounts();
+    var target = allAccounts.find(function (acc) {
+      return acc.emailHash === cleanHash;
+    });
+    if (!target) {
+      return { ok: false, error: 'Akun admin tidak ditemukan.' };
+    }
+    if (!target.removable) {
+      return { ok: false, error: 'Akun dari config.js / ADMIN_EMAILS hanya dapat diubah lewat konfigurasi server.' };
+    }
+    if (allAccounts.length <= 1) {
+      return { ok: false, error: 'Minimal harus ada 1 akun admin terdaftar.' };
+    }
+    var nextStored = loadStoredAllowedAdmins().filter(function (item) {
+      return item.emailHash !== cleanHash;
+    });
+    writeLocalJson(getAdminAllowedEmailsKey(), nextStored);
+    if (authState.emailHash && authState.emailHash === cleanHash) {
+      signOutAdmin({ revoke: false });
+    }
+    return { ok: true, accounts: getAllowedAdminAccounts() };
+  }
+
+  function clearPersistedAdminSession() {
+    removeLocalKey(getAdminSessionKey());
+  }
+
+  function persistAdminSession() {
+    writeLocalJson(getAdminSessionKey(), {
+      accessToken: authState.accessToken,
+      expiresAt: authState.expiresAt,
+      loggedInAt: authState.loggedInAt,
+      email: authState.email,
+      emailMasked: authState.emailMasked,
+      emailHash: authState.emailHash
+    });
+  }
+
+  function resetAuthStateMemory() {
+    authState.accessToken = '';
+    authState.expiresAt = 0;
+    authState.loggedInAt = 0;
+    authState.email = '';
+    authState.emailMasked = '';
+    authState.emailHash = '';
+  }
+
+  function loadAdminSession() {
+    removeLocalKey(LEGACY_PIN_SESSION_KEY);
+    var parsed = readLocalJson(getAdminSessionKey());
+    var token = parsed && typeof parsed.accessToken === 'string' ? parsed.accessToken : '';
+    var expiresAt = Number(parsed && parsed.expiresAt);
+    var emailHash = parsed && typeof parsed.emailHash === 'string' ? parsed.emailHash.toLowerCase() : '';
+    var accounts = getAllowedAdminAccounts();
+    var stillAllowed = accounts.length > 0 && Boolean(emailHash && accounts.some(function (acc) {
+      return acc.emailHash === emailHash;
+    }));
+    if (!token || !Number.isFinite(expiresAt) || Date.now() >= expiresAt || !stillAllowed) {
+      resetAuthStateMemory();
+      clearPersistedAdminSession();
+      return;
+    }
+    authState.accessToken = token;
+    authState.expiresAt = expiresAt;
+    authState.loggedInAt = Number(parsed && parsed.loggedInAt) || 0;
+    authState.email = typeof parsed.email === 'string' ? parsed.email : '';
+    authState.emailMasked = typeof parsed.emailMasked === 'string'
+      ? parsed.emailMasked
+      : (authState.email ? maskEmail(authState.email) : '');
+    authState.emailHash = emailHash;
   }
 
   loadAdminSession();
-  loadAdminPinSession();
 
   function isOAuthConfigured() {
     var gc = CONFIG.googleCalendar || {};
@@ -652,6 +713,11 @@ window.PortalKampus = window.PortalKampus || {};
     return proto === 'http:' || proto === 'https:';
   }
 
+  function isLocalDevHost() {
+    var host = String((window.location && window.location.hostname) || '').toLowerCase();
+    return host === 'localhost' || host === '127.0.0.1' || host === '[::1]';
+  }
+
   function hasValidAdminToken() {
     if (!authState.accessToken) {
       return false;
@@ -661,19 +727,32 @@ window.PortalKampus = window.PortalKampus || {};
       clearPersistedAdminSession();
       return false;
     }
+    var accounts = getAllowedAdminAccounts();
+    if (accounts.length === 0 || !authState.emailHash || !accounts.some(function (acc) { return acc.emailHash === authState.emailHash; })) {
+      resetAuthStateMemory();
+      clearPersistedAdminSession();
+      return false;
+    }
     return true;
   }
 
   function getAdminAuthStatus() {
     var signedIn = hasValidAdminToken();
+    var accounts = getAllowedAdminAccounts();
     return {
       configured: isOAuthConfigured(),
       protocolSupported: canUseOAuthProtocol(),
+      allowListConfigured: accounts.length > 0,
+      canBootstrapLocal: accounts.length === 0 && isLocalDevHost(),
+      allowedCount: accounts.length,
       signedIn: signedIn,
+      email: signedIn ? authState.email : '',
+      emailMasked: signedIn ? authState.emailMasked : '',
+      emailHash: signedIn ? authState.emailHash : '',
       expiresAt: signedIn ? authState.expiresAt : 0,
       loggedInAt: signedIn ? authState.loggedInAt : 0,
       remainingMs: signedIn ? Math.max(0, authState.expiresAt - Date.now()) : 0,
-      sessionMinutes: getSessionMinutes()
+      sessionMinutes: getMaxSessionMinutes()
     };
   }
 
@@ -683,6 +762,33 @@ window.PortalKampus = window.PortalKampus || {};
     } catch (err) {
       // Abaikan jika sessionStorage tidak tersedia.
     }
+  }
+
+  function revokeTokenQuietly(token) {
+    if (token && window.google && window.google.accounts && window.google.accounts.oauth2) {
+      try {
+        window.google.accounts.oauth2.revoke(token, function () {});
+      } catch (err) {
+        // Abaikan jika pencabutan token gagal saat offline.
+      }
+    }
+  }
+
+  async function fetchVerifiedEmail(accessToken) {
+    var response = await window.fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+      headers: {
+        Authorization: 'Bearer ' + accessToken
+      }
+    });
+    if (!response.ok) {
+      throw new Error('Gagal memverifikasi profil Google (HTTP ' + response.status + ').');
+    }
+    var profile = await response.json();
+    var email = profile && typeof profile.email === 'string' ? profile.email.trim().toLowerCase() : '';
+    if (!email || profile.email_verified !== true) {
+      throw new Error('Email akun Google belum terverifikasi.');
+    }
+    return email;
   }
 
   function requestAdminToken(options) {
@@ -713,8 +819,8 @@ window.PortalKampus = window.PortalKampus || {};
 
       authState.tokenClient = window.google.accounts.oauth2.initTokenClient({
         client_id: gc.oauthClientId.trim(),
-        scope: 'https://www.googleapis.com/auth/calendar.events',
-        callback: function (resp) {
+        scope: 'https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/userinfo.email',
+        callback: async function (resp) {
           if (settled) {
             return;
           }
@@ -726,17 +832,54 @@ window.PortalKampus = window.PortalKampus || {};
             finishReject('Token akses Google tidak diterima.');
             return;
           }
-          settled = true;
-          // Batasi sesi lokal maksimal 30 menit setiap login agar tetap aman di localStorage.
-          var maxSessionMs = getSessionMinutes() * 60 * 1000;
-          var googleTtlMs = Math.max(0, (Number(resp.expires_in) || 3500) * 1000 - TOKEN_SAFETY_BUFFER_MS);
-          var effectiveTtlMs = Math.min(maxSessionMs, googleTtlMs || maxSessionMs);
-          var now = Date.now();
-          authState.accessToken = resp.access_token;
-          authState.loggedInAt = now;
-          authState.expiresAt = now + effectiveTtlMs;
-          persistAdminSession();
-          resolve(getAdminAuthStatus());
+
+          var token = resp.access_token;
+          try {
+            var email = await fetchVerifiedEmail(token);
+            var check = isEmailAllowed(email);
+            var bootstrapped = false;
+            if (check.emptyAllowlist) {
+              if (isLocalDevHost()) {
+                addAllowedAdminEmail(email);
+                check = isEmailAllowed(email);
+                bootstrapped = true;
+              } else {
+                revokeTokenQuietly(token);
+                resetAuthStateMemory();
+                clearPersistedAdminSession();
+                finishReject('Daftar admin (ADMIN_EMAILS) belum diatur pada Environment Variable Vercel.');
+                return;
+              }
+            }
+            if (!check.allowed) {
+              revokeTokenQuietly(token);
+              resetAuthStateMemory();
+              clearPersistedAdminSession();
+              finishReject('Akun ' + maskEmail(email) + ' tidak terdaftar sebagai admin panel ini.');
+              return;
+            }
+
+            settled = true;
+            var maxSessionMs = getMaxSessionMinutes() * 60 * 1000;
+            var googleTtlMs = Math.max(0, (Number(resp.expires_in) || 3500) * 1000 - TOKEN_SAFETY_BUFFER_MS);
+            var effectiveTtlMs = Math.min(maxSessionMs, googleTtlMs || maxSessionMs);
+            var now = Date.now();
+            authState.accessToken = token;
+            authState.loggedInAt = now;
+            authState.expiresAt = now + effectiveTtlMs;
+            authState.email = email;
+            authState.emailMasked = maskEmail(email);
+            authState.emailHash = check.emailHash;
+            persistAdminSession();
+            var status = getAdminAuthStatus();
+            status.bootstrapped = bootstrapped;
+            resolve(status);
+          } catch (verifyErr) {
+            revokeTokenQuietly(token);
+            resetAuthStateMemory();
+            clearPersistedAdminSession();
+            finishReject(verifyErr && verifyErr.message ? verifyErr.message : 'Gagal memverifikasi akun Google.');
+          }
         },
         error_callback: function (err) {
           var reason = err && (err.message || err.type) ? (err.message || err.type) : 'Popup login ditutup atau diblokir browser.';
@@ -744,23 +887,20 @@ window.PortalKampus = window.PortalKampus || {};
         }
       });
 
-      // Paksa pemilih akun Google muncul agar admin bebas memilih atau mengganti akun yang berbeda.
       authState.tokenClient.requestAccessToken({
-        prompt: opts.silent ? '' : 'select_account'
+        prompt: opts.selectAccount ? 'select_account' : ''
       });
     });
   }
 
-  function signOutAdmin() {
+  function signOutAdmin(options) {
+    var opts = options || {};
+    var shouldRevoke = opts.revoke !== false;
     var token = authState.accessToken;
     resetAuthStateMemory();
     clearPersistedAdminSession();
-    if (token && window.google && window.google.accounts && window.google.accounts.oauth2) {
-      try {
-        window.google.accounts.oauth2.revoke(token, function () {});
-      } catch (err) {
-        // Abaikan jika pencabutan token gagal saat offline.
-      }
+    if (shouldRevoke) {
+      revokeTokenQuietly(token);
     }
   }
 
@@ -1029,12 +1169,14 @@ window.PortalKampus = window.PortalKampus || {};
     canUseOAuthProtocol: canUseOAuthProtocol,
     getAdminAuthStatus: getAdminAuthStatus,
     getAdminSessionKey: getAdminSessionKey,
+    getAdminAllowedEmailsKey: getAdminAllowedEmailsKey,
     reloadAdminSession: loadAdminSession,
-    getAdminPinStatus: getAdminPinStatus,
-    getAdminPinSessionKey: getAdminPinSessionKey,
-    reloadAdminPinSession: loadAdminPinSession,
-    verifyAdminPin: verifyAdminPin,
-    lockAdminPanel: lockAdminPanel,
+    getAllowedAdminAccounts: getAllowedAdminAccounts,
+    isEmailAllowed: isEmailAllowed,
+    addAllowedAdminEmail: addAllowedAdminEmail,
+    removeAllowedAdminEmail: removeAllowedAdminEmail,
+    maskEmail: maskEmail,
+    sha256Hex: sha256Hex,
     requestAdminToken: requestAdminToken,
     signOutAdmin: signOutAdmin,
     clearCache: clearCache,

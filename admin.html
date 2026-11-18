@@ -88,29 +88,20 @@
   </header>
 
   <main id="main-content">
-    <section class="admin-pin-gate" id="admin-pin-gate" aria-labelledby="admin-pin-heading">
+    <section class="admin-auth-gate" id="admin-auth-gate" aria-labelledby="admin-auth-heading">
       <div class="wrap">
-        <article class="detail-panel admin-pin-card">
-          <span class="badge badge--cat">Akses Khusus Pengurus &middot; Sesi 30 Menit</span>
-          <h1 class="admin-pin-card__title" id="admin-pin-heading">Masuk Panel Admin</h1>
-          <p class="table-sub">Masukkan PIN admin untuk membuka kalender penjadwalan, pengelola thumbnail event, dan sinkronisasi Google Calendar.</p>
+        <article class="detail-panel admin-auth-card">
+          <span class="badge badge--cat">Akses Khusus Pengurus &middot; Google SSO</span>
+          <h1 class="admin-auth-card__title" id="admin-auth-heading">Masuk Panel Admin</h1>
+          <p class="table-sub" id="admin-auth-desc">Masuk menggunakan akun Google yang terdaftar sebagai pengelola untuk membuka kalender penjadwalan, pengelola thumbnail event, dan sinkronisasi Google Calendar.</p>
 
-          <form class="reg-form" id="admin-pin-form" novalidate>
-            <div class="form-field">
-              <label for="admin-pin-input">PIN Admin</label>
-              <div class="admin-pin-input-row">
-                <input id="admin-pin-input" type="password" inputmode="numeric" autocomplete="current-password" placeholder="Masukkan PIN Admin" required>
-                <button type="button" class="btn btn-outline btn-compact" id="admin-pin-toggle" aria-pressed="false">Lihat</button>
-              </div>
-            </div>
+          <div id="admin-auth-error" class="admin-feedback" role="alert"></div>
 
-            <div id="admin-pin-error" class="admin-feedback" role="alert"></div>
-
-            <div class="admin-actions-row">
-              <button type="submit" class="btn btn-accent" id="admin-pin-submit">Masuk Panel Admin</button>
-              <a class="btn btn-outline" href="index.html">Kembali ke Beranda</a>
-            </div>
-          </form>
+          <div class="admin-actions-row">
+            <button type="button" class="btn btn-accent" id="admin-sso-login-btn">Masuk dengan Google</button>
+            <button type="button" class="btn btn-outline" id="admin-sso-select-btn">Pilih Akun Google Lain</button>
+            <a class="btn btn-outline" href="index.html">Kembali ke Beranda</a>
+          </div>
         </article>
       </div>
     </section>
@@ -396,7 +387,42 @@
       </div>
     </section>
 
-    <section class="content-section content-muted" id="setup-gcal">
+    <section class="content-section content-muted" id="admin-accounts-section">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <h2>Kelola Akses Akun Admin (Google SSO)</h2>
+          </div>
+          <p>Tambahkan atau cabut alamat email Google panitia yang diizinkan membuka panel admin ini.</p>
+        </div>
+
+        <div class="admin-workspace">
+          <article class="detail-panel">
+            <h3 class="footer-title">Daftar Akun Google Terdaftar</h3>
+            <p class="table-sub">Hanya akun Google di bawah ini yang dapat melewati gerbang login SSO panel admin.</p>
+            <div id="admin-accounts-list" class="admin-accounts-list"></div>
+          </article>
+
+          <aside class="detail-panel">
+            <h3 class="footer-title">Tambah Akun Admin Baru</h3>
+            <p class="table-sub">Masukkan alamat email Google rekan panitia (tersimpan di browser ini). Agar berlaku permanen di semua perangkat/Vercel, klik <strong>Salin ADMIN_EMAILS</strong> lalu tempel ke Environment Variables, dan beri akses <strong>Make changes to events</strong> di Google Calendar.</p>
+            <form class="reg-form" id="admin-add-account-form" novalidate>
+              <div class="form-field">
+                <label for="adm-new-admin-email">Email Google Admin *</label>
+                <input id="adm-new-admin-email" type="email" required placeholder="contoh: panitia.kampus@gmail.com">
+              </div>
+              <div class="admin-actions-row">
+                <button type="submit" class="btn btn-accent" id="adm-add-account-btn">Tambah Akun</button>
+                <button type="button" class="btn btn-outline btn-compact" id="adm-copy-env-emails-btn">Salin ADMIN_EMAILS (.env / Vercel)</button>
+              </div>
+              <div id="adm-account-feedback" class="admin-feedback" role="status" aria-live="polite"></div>
+            </form>
+          </aside>
+        </div>
+      </div>
+    </section>
+
+    <section class="content-section content-surface" id="setup-gcal">
       <div class="wrap">
         <div class="section-head">
           <div>

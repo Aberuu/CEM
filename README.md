@@ -25,5 +25,5 @@ Tugas PTI: Pembuatan Web, Kelompok **Kerupuk Basah - 3**
 
 ## Dokumentasi Pengembang & Deploy (Vercel)
 1. Untuk pengembangan lokal, salin `js/config.example.js` menjadi `js/config.js` (file `js/config.js` tidak ikut ter-commit ke GitHub karena masuk `.gitignore`).
-2. Untuk hosting di **Vercel**, tambahkan 3 Environment Variables di *Project Settings -> Environment Variables* (`GCAL_CALENDAR_ID`, `GCAL_API_KEY`, `GCAL_OAUTH_CLIENT_ID` sesuai `.env.example`). Konfigurasi `vercel.json` akan menjalankan `scripts/build-vercel.mjs` saat deploy.
+2. Untuk hosting di **Vercel**, tambahkan 4 Environment Variables di *Project Settings -> Environment Variables* (`GCAL_CALENDAR_ID`, `GCAL_API_KEY`, `GCAL_OAUTH_CLIENT_ID`, dan `ADMIN_EMAILS` sesuai `.env.example`). Konfigurasi `vercel.json` akan menjalankan `scripts/build-vercel.mjs` saat deploy.
 3. Lihat [JUNIOR_DEV_GUIDE.md](JUNIOR_DEV_GUIDE.md) untuk peta file JS, cara mengisi kredensial, serta panduan menambah kategori atau tag metadata baru.
