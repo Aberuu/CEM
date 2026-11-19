@@ -62,7 +62,7 @@ let configSource = fs.readFileSync(templatePath, 'utf8');
 const rawAdminEmails = getEnv('ADMIN_EMAILS');
 const allowedEmailHashes = rawAdminEmails
   ? rawAdminEmails
-      .split(',')
+      .split(/[\s,;]+/)
       .map((item) => item.trim().toLowerCase())
       .filter(Boolean)
       .map((email) => crypto.createHash('sha256').update(email, 'utf8').digest('hex'))

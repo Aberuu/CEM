@@ -785,7 +785,8 @@ window.PortalKampus = window.PortalKampus || {};
     }
     var profile = await response.json();
     var email = profile && typeof profile.email === 'string' ? profile.email.trim().toLowerCase() : '';
-    if (!email || profile.email_verified !== true) {
+    var isExplicitlyUnverified = profile && (profile.email_verified === false || profile.email_verified === 'false');
+    if (!email || isExplicitlyUnverified) {
       throw new Error('Email akun Google belum terverifikasi.');
     }
     return email;
@@ -809,11 +810,17 @@ window.PortalKampus = window.PortalKampus || {};
 
       var gc = CONFIG.googleCalendar;
       var settled = false;
+      var timeoutId = null;
+
       function finishReject(message) {
         if (settled) {
           return;
         }
         settled = true;
+        if (timeoutId) {
+          window.clearTimeout(timeoutId);
+          timeoutId = null;
+        }
         reject(new Error(message));
       }
 
@@ -873,6 +880,11 @@ window.PortalKampus = window.PortalKampus || {};
             persistAdminSession();
             var status = getAdminAuthStatus();
             status.bootstrapped = bootstrapped;
+            if (timeoutId) {
+              window.clearTimeout(timeoutId);
+              timeoutId = null;
+            }
+            settled = true;
             resolve(status);
           } catch (verifyErr) {
             revokeTokenQuietly(token);
@@ -886,6 +898,10 @@ window.PortalKampus = window.PortalKampus || {};
           finishReject(reason);
         }
       });
+
+      timeoutId = window.setTimeout(function () {
+        finishReject('Waktu login Google habis atau jendela otorisasi ditutup.');
+      }, 75000);
 
       authState.tokenClient.requestAccessToken({
         prompt: opts.selectAccount ? 'select_account' : ''

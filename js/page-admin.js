@@ -1460,7 +1460,17 @@ window.PortalKampus = window.PortalKampus || {};
       );
       await loadConnectedSchedule(true);
     } catch (err) {
-      var msg = err && err.message ? err.message : 'Login dibatalkan.';
+      var rawMsg = err && err.message ? String(err.message) : 'Login dibatalkan.';
+      var msg = rawMsg;
+      if (rawMsg.indexOf('origin_mismatch') !== -1 || rawMsg.indexOf('The given origin is not allowed') !== -1) {
+        msg = 'Domain ini (' + (window.location && window.location.origin ? window.location.origin : 'trpti.vercel.app') + ') belum didaftarkan di "Authorized JavaScript origins" pada Google Cloud Console.';
+      } else if (rawMsg.indexOf('access_denied') !== -1) {
+        msg = 'Akses ditolak oleh Google. Jika status OAuth di Google Cloud masih "Testing", pastikan email admin sudah dimasukkan ke daftar "Test users".';
+      } else if (rawMsg.indexOf('popup_closed') !== -1) {
+        msg = 'Jendela login Google ditutup sebelum proses selesai.';
+      } else if (rawMsg.indexOf('popup_failed_to_open') !== -1) {
+        msg = 'Jendela pop-up login Google diblokir browser. Izinkan pop-up untuk situs ini lalu coba lagi.';
+      }
       if (!svc.getAdminAuthStatus().signedIn) {
         applyAuthGate(msg);
       } else {
