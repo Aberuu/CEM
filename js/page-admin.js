@@ -9,6 +9,86 @@ window.PortalKampus = window.PortalKampus || {};
   var ui = window.PortalKampus.ui;
   var tl = window.PortalKampus.timelineView;
 
+  var TEMPLATE_EVENT_PRESETS = [
+    {
+      slot: 1,
+      title: '[Template 1] Judul Seminar',
+      categoryId: 'seminar',
+      statusValue: 'open',
+      dayOffset: 1,
+      startTime: '09:00',
+      endTime: '12:00',
+      description: '[Tulis deskripsi singkat mengenai tujuan, materi, dan sasaran peserta Event 1 di sini.]',
+      rundownRaw: '09.00 - 09.30 | [Registrasi & Pembukaan]\n09.30 - 11.00 | [Sesi Materi Utama]\n11.00 - 12.00 | [Tanya Jawab & Penutupan]'
+    },
+    {
+      slot: 2,
+      title: '[Template 2] Judul Workshop',
+      categoryId: 'workshop',
+      statusValue: 'open',
+      dayOffset: 2,
+      startTime: '09:00',
+      endTime: '12:00',
+      description: '[Tulis deskripsi singkat mengenai tujuan, materi, dan sasaran peserta Event 2 di sini.]',
+      rundownRaw: '09.00 - 09.30 | [Registrasi Peserta]\n09.30 - 11.15 | [Sesi Praktik / Demo]\n11.15 - 12.00 | [Review Karya & Penutupan]'
+    },
+    {
+      slot: 3,
+      title: '[Template 3] Judul Lomba',
+      categoryId: 'lomba',
+      statusValue: 'open',
+      dayOffset: 3,
+      startTime: '08:30',
+      endTime: '15:00',
+      description: '[Tulis deskripsi singkat mengenai ketentuan lomba, kategori peserta, dan hadiah Event 3 di sini.]',
+      rundownRaw: '08.30 - 09.00 | [Daftar Ulang & Briefing]\n09.00 - 13.00 | [Pelaksanaan Lomba]\n13.00 - 15.00 | [Presentasi, Penjurian & Pengumuman]'
+    },
+    {
+      slot: 4,
+      title: '[Template 4] Judul Pentas Seni',
+      categoryId: 'seni',
+      statusValue: 'soon',
+      dayOffset: 4,
+      startTime: '18:00',
+      endTime: '21:00',
+      description: '[Tulis deskripsi singkat mengenai pengisi acara, konsep pertunjukan, dan informasi tiket Event 4 di sini.]',
+      rundownRaw: '18.00 - 18.30 | [Open Gate]\n18.30 - 20.30 | [Penampilan Utama]\n20.30 - 21.00 | [Penutupan]'
+    },
+    {
+      slot: 5,
+      title: '[Template 5] Judul Kegiatan UKM',
+      categoryId: 'ukm',
+      statusValue: 'open',
+      dayOffset: 5,
+      startTime: '10:00',
+      endTime: '14:00',
+      description: '[Tulis deskripsi singkat mengenai kegiatan UKM, manfaat bergabung, dan persyaratan Event 5 di sini.]',
+      rundownRaw: '10.00 - 10.30 | [Pembukaan & Pengenalan UKM]\n10.30 - 13.00 | [Sesi Interaktif / Expo Booth]\n13.00 - 14.00 | [Pendaftaran Anggota Baru]'
+    },
+    {
+      slot: 6,
+      title: '[Template 6] Judul Agenda Kampus',
+      categoryId: 'umum',
+      statusValue: 'soon',
+      dayOffset: 6,
+      startTime: '09:00',
+      endTime: '11:30',
+      description: '[Tulis deskripsi singkat mengenai agenda resmi fakultas/kampus dan peserta yang diundang pada Event 6 di sini.]',
+      rundownRaw: '09.00 - 09.30 | [Registrasi & Pembukaan]\n09.30 - 11.00 | [Agenda Utama]\n11.00 - 11.30 | [Penutupan]'
+    },
+    {
+      slot: 7,
+      title: '[Template 7] Judul Seminar Tambahan',
+      categoryId: 'seminar',
+      statusValue: 'open',
+      dayOffset: 7,
+      startTime: '13:00',
+      endTime: '16:00',
+      description: '[Tulis deskripsi singkat mengenai topik, pembicara/fasilitator, dan fasilitas peserta Event 7 di sini.]',
+      rundownRaw: '13.00 - 13.30 | [Registrasi]\n13.30 - 15.15 | [Pemaparan & Diskusi]\n15.15 - 16.00 | [Dokumentasi & Penutupan]'
+    }
+  ];
+
   var today = new Date();
   var state = {
     editingEventId: '',
@@ -728,10 +808,11 @@ window.PortalKampus = window.PortalKampus || {};
     return ics.buildGoogleCalendarAddUrl(preview);
   }
 
-  function upsertLocalDraft(data, existingEvent) {
+  function upsertLocalDraft(data, existingEvent, customDraftId, options) {
+    var opts = options || {};
     var prevSnapshot = state.localDrafts.slice();
     var isExistingBase = existingEvent && !existingEvent.isLocalDraft;
-    var draftId = existingEvent ? existingEvent.id : ('draft-' + Date.now());
+    var draftId = existingEvent ? existingEvent.id : (customDraftId || ('draft-' + Date.now()));
     var draftObj = Object.assign({}, existingEvent || {}, data.previewEvent, {
       id: draftId,
       baseEventId: existingEvent ? (existingEvent.baseEventId || (isExistingBase ? existingEvent.id : '')) : '',
@@ -754,13 +835,73 @@ window.PortalKampus = window.PortalKampus || {};
     } else {
       state.localDrafts.push(draftObj);
     }
-    saveStoredDrafts();
+    if (!opts.deferSave) {
+      saveStoredDrafts();
+    }
 
+    if (!opts.skipUndo) {
+      state.lastUndo = {
+        type: 'draft',
+        previousDrafts: prevSnapshot
+      };
+    }
+    return draftObj;
+  }
+
+  // Tambahkan hingga 7 slot template ke draft lokal secara idempoten agar siap diedit dan dikirim ke Google Calendar.
+  function seedSevenTemplateDrafts() {
+    var prevSnapshot = state.localDrafts.slice();
+    var addedCount = 0;
+
+    TEMPLATE_EVENT_PRESETS.forEach(function (preset) {
+      var draftId = 'draft-template-' + preset.slot;
+      var exists = state.localDrafts.some(function (d) {
+        return String(d.id) === draftId;
+      });
+      if (exists) {
+        return;
+      }
+
+      var slotDate = new Date(today.getFullYear(), today.getMonth(), today.getDate() + preset.dayOffset);
+      var dateStr = formatDateInput(slotDate);
+      var data = buildEventPayloadData({
+        eventId: draftId,
+        title: preset.title,
+        categoryId: preset.categoryId,
+        statusValue: preset.statusValue,
+        isAllDay: false,
+        startDate: dateStr,
+        endDate: dateStr,
+        startTime: preset.startTime,
+        endTime: preset.endTime,
+        location: '[Isi Nama Ruangan / Gedung]',
+        description: preset.description,
+        fee: '[Gratis / Rp ...]',
+        contact: '[Nama CP / 08xxx / email@domain.com]',
+        daftarUrl: '',
+        posterUrl: '',
+        rundownRaw: preset.rundownRaw
+      });
+      upsertLocalDraft(data, null, draftId, { deferSave: true, skipUndo: true });
+      addedCount += 1;
+    });
+
+    if (addedCount === 0) {
+      showToast('Ke-7 template draft sudah ada di sesi ini.');
+      return;
+    }
+
+    saveStoredDrafts();
     state.lastUndo = {
       type: 'draft',
       previousDrafts: prevSnapshot
     };
-    return draftObj;
+    renderConnectedList();
+    renderAdminTimeline();
+    showToast(
+      addedCount + ' template draft dimuat. Klik Edit pada tiap baris untuk mengisi detail lalu kirim ke Google Calendar.',
+      { undoAvailable: true }
+    );
   }
 
   function renderQuickCategoryChips() {
@@ -999,6 +1140,17 @@ window.PortalKampus = window.PortalKampus || {};
     syncQuickModalState();
   }
 
+  function redirectToAuthGateIfSignedOut(err, beforeGateFn) {
+    if (svc.getAdminAuthStatus().signedIn) {
+      return false;
+    }
+    if (typeof beforeGateFn === 'function') {
+      beforeGateFn();
+    }
+    applyAuthGate(err && err.message ? err.message : '');
+    return true;
+  }
+
   async function handleQuickModalSubmit(e) {
     e.preventDefault();
     var data = readQuickModalPayload();
@@ -1037,6 +1189,9 @@ window.PortalKampus = window.PortalKampus || {};
         closeQuickModal();
         await loadConnectedSchedule(true);
       } catch (err) {
+        if (redirectToAuthGateIfSignedOut(err, closeQuickModal)) {
+          return;
+        }
         renderStatusSummary();
         if (el.qmError) {
           el.qmError.className = 'admin-feedback admin-feedback--error';
@@ -1097,6 +1252,9 @@ window.PortalKampus = window.PortalKampus || {};
         await loadConnectedSchedule(true);
         showToast(msg, { undoAvailable: true });
       } catch (err) {
+        if (redirectToAuthGateIfSignedOut(err)) {
+          return;
+        }
         renderStatusSummary();
         showToast('Gagal memperbarui Google Calendar: ' + (err && err.message ? err.message : 'Error'), { isError: true });
       }
@@ -1345,6 +1503,7 @@ window.PortalKampus = window.PortalKampus || {};
         '</div>' +
         '<div class="admin-status-actions">' +
           authBtnHtml +
+          '<button type="button" class="btn btn-outline btn-compact" id="admin-seed-templates-btn">Muat 7 Template Draft</button>' +
           (auth.signedIn && draftCount > 0
             ? '<button type="button" class="btn btn-accent btn-compact" id="admin-publish-drafts-btn">Kirim ' + draftCount + ' Draft ke Google Calendar</button>'
             : '') +
@@ -1355,6 +1514,11 @@ window.PortalKampus = window.PortalKampus || {};
           '<a class="btn btn-outline btn-compact" href="https://calendar.google.com/" target="_blank" rel="noopener">Buka Google Calendar</a>' +
         '</div>' +
       '</div>';
+
+    var seedTemplatesBtn = document.getElementById('admin-seed-templates-btn');
+    if (seedTemplatesBtn) {
+      seedTemplatesBtn.addEventListener('click', seedSevenTemplateDrafts);
+    }
 
     var refreshBtn = document.getElementById('admin-refresh-btn');
     if (refreshBtn) {
@@ -1428,6 +1592,9 @@ window.PortalKampus = window.PortalKampus || {};
       showToast(sentCount + ' draft lokal berhasil dikirim ke Google Calendar.');
       await loadConnectedSchedule(true);
     } catch (err) {
+      if (redirectToAuthGateIfSignedOut(err)) {
+        return;
+      }
       showToast('Sebagian draft gagal dikirim (' + sentCount + ' terkirim): ' + (err && err.message ? err.message : 'Error'), { isError: true });
       renderConnectedList();
       renderAdminTimeline();
@@ -1530,6 +1697,9 @@ window.PortalKampus = window.PortalKampus || {};
       showToast('Jadwal "' + label + '" berhasil dihapus dari Google Calendar.');
       await loadConnectedSchedule(true);
     } catch (err) {
+      if (redirectToAuthGateIfSignedOut(err)) {
+        return;
+      }
       renderStatusSummary();
       showActionFeedback('Gagal menghapus jadwal: ' + (err && err.message ? err.message : 'Error'), true);
     } finally {
@@ -1751,6 +1921,7 @@ window.PortalKampus = window.PortalKampus || {};
     el.cardPreview = document.getElementById('adm-card-preview');
     el.feedback = document.getElementById('adm-feedback');
     el.submitBtn = document.getElementById('adm-submit-btn');
+    el.saveDraftBtn = document.getElementById('adm-save-draft-btn');
     el.deleteBtn = document.getElementById('adm-delete-btn');
     el.copyBtn = document.getElementById('adm-copy-btn');
     el.icsBtn = document.getElementById('adm-ics-btn');
@@ -1972,13 +2143,18 @@ window.PortalKampus = window.PortalKampus || {};
     el.form.addEventListener('input', updatePreview);
     el.form.addEventListener('change', updatePreview);
 
+    function validateFullForm(data) {
+      var errorMsg = validateEventTiming(el.title ? el.title.value : '', data);
+      if (!errorMsg && data.daftarUrl && !/^https?:\/\//i.test(data.daftarUrl)) {
+        return 'Link pendaftaran harus diawali dengan https:// atau http://.';
+      }
+      return errorMsg;
+    }
+
     el.form.addEventListener('submit', async function (event) {
       event.preventDefault();
       var data = readFormState();
-      var errorMsg = validateEventTiming(el.title ? el.title.value : '', data);
-      if (!errorMsg && data.daftarUrl && !/^https?:\/\//i.test(data.daftarUrl)) {
-        errorMsg = 'Link pendaftaran harus diawali dengan https:// atau http://.';
-      }
+      var errorMsg = validateFullForm(data);
       if (errorMsg) {
         showActionFeedback(errorMsg, true);
         return;
@@ -2006,6 +2182,9 @@ window.PortalKampus = window.PortalKampus || {};
           setDefaultDateInputs(true);
           await loadConnectedSchedule(true);
         } catch (err) {
+          if (redirectToAuthGateIfSignedOut(err)) {
+            return;
+          }
           renderStatusSummary();
           showActionFeedback('Gagal menyimpan ke Google Calendar: ' + (err && err.message ? err.message : 'Error'), true);
         } finally {
@@ -2023,6 +2202,31 @@ window.PortalKampus = window.PortalKampus || {};
         gcalUrl
       );
     });
+
+    if (el.saveDraftBtn) {
+      el.saveDraftBtn.addEventListener('click', function () {
+        var data = readFormState();
+        var errorMsg = validateFullForm(data);
+        if (errorMsg) {
+          showActionFeedback(errorMsg, true);
+          return;
+        }
+        var existing = state.editingEventId ? findEventById(state.editingEventId) : null;
+        upsertLocalDraft(data, existing);
+        state.selectedDateKey = data.startDate;
+        state.editingEventId = '';
+        state.posterUrl = '';
+        el.form.reset();
+        setDefaultDateInputs(true);
+        renderConnectedList();
+        renderAdminTimeline();
+        updatePreview();
+        showActionFeedback(
+          'Draft "' + data.title + '" disimpan ke daftar lokal. Edit template lain atau klik "Kirim Draft ke Google Calendar" di atas.',
+          false
+        );
+      });
+    }
 
     if (el.deleteBtn) {
       el.deleteBtn.addEventListener('click', function () {

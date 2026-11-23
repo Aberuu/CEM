@@ -378,6 +378,8 @@ window.PortalKampus = window.PortalKampus || {};
   var DEFAULT_MAX_SESSION_MINUTES = 55;
   var TOKEN_SAFETY_BUFFER_MS = 15000;
   var LEGACY_PIN_SESSION_KEY = 'portal_kampus_admin_pin_session_v1';
+  var CALENDAR_WRITE_SCOPE = 'https://www.googleapis.com/auth/calendar.events';
+  var OAUTH_SCOPES = CALENDAR_WRITE_SCOPE + ' https://www.googleapis.com/auth/userinfo.email';
 
   var authState = {
     accessToken: '',
@@ -386,7 +388,8 @@ window.PortalKampus = window.PortalKampus || {};
     email: '',
     emailMasked: '',
     emailHash: '',
-    tokenClient: null
+    tokenClient: null,
+    needsConsentPrompt: false
   };
 
   function getMaxSessionMinutes() {
@@ -792,6 +795,19 @@ window.PortalKampus = window.PortalKampus || {};
     return email;
   }
 
+  function hasCalendarWriteScope(tokenResp) {
+    if (
+      window.google &&
+      window.google.accounts &&
+      window.google.accounts.oauth2 &&
+      typeof window.google.accounts.oauth2.hasGrantedAllScopes === 'function'
+    ) {
+      return window.google.accounts.oauth2.hasGrantedAllScopes(tokenResp, CALENDAR_WRITE_SCOPE);
+    }
+    var rawScope = String((tokenResp && tokenResp.scope) || '');
+    return rawScope.indexOf(CALENDAR_WRITE_SCOPE) !== -1;
+  }
+
   function requestAdminToken(options) {
     var opts = options || {};
     return new Promise(function (resolve, reject) {
@@ -826,7 +842,7 @@ window.PortalKampus = window.PortalKampus || {};
 
       authState.tokenClient = window.google.accounts.oauth2.initTokenClient({
         client_id: gc.oauthClientId.trim(),
-        scope: 'https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/userinfo.email',
+        scope: OAUTH_SCOPES,
         callback: async function (resp) {
           if (settled) {
             return;
@@ -841,6 +857,15 @@ window.PortalKampus = window.PortalKampus || {};
           }
 
           var token = resp.access_token;
+          if (!hasCalendarWriteScope(resp)) {
+            revokeTokenQuietly(token);
+            resetAuthStateMemory();
+            clearPersistedAdminSession();
+            authState.needsConsentPrompt = true;
+            finishReject('Izin akses Google Calendar belum dicentang saat login. Klik Masuk dengan Google lagi lalu centang kotak izin kelola acara Google Calendar.');
+            return;
+          }
+
           try {
             var email = await fetchVerifiedEmail(token);
             var check = isEmailAllowed(email);
@@ -877,6 +902,7 @@ window.PortalKampus = window.PortalKampus || {};
             authState.email = email;
             authState.emailMasked = maskEmail(email);
             authState.emailHash = check.emailHash;
+            authState.needsConsentPrompt = false;
             persistAdminSession();
             var status = getAdminAuthStatus();
             status.bootstrapped = bootstrapped;
@@ -903,8 +929,12 @@ window.PortalKampus = window.PortalKampus || {};
         finishReject('Waktu login Google habis atau jendela otorisasi ditutup.');
       }, 75000);
 
+      var promptMode = opts.selectAccount
+        ? (authState.needsConsentPrompt ? 'select_account consent' : 'select_account')
+        : (authState.needsConsentPrompt ? 'consent' : '');
+
       authState.tokenClient.requestAccessToken({
-        prompt: opts.selectAccount ? 'select_account' : ''
+        prompt: promptMode
       });
     });
   }
@@ -1082,6 +1112,16 @@ window.PortalKampus = window.PortalKampus || {};
         apiMsg = errJson && errJson.error && errJson.error.message ? ': ' + errJson.error.message : '';
       } catch (parseErr) {
         apiMsg = '';
+      }
+      if (response.status === 403 && /insufficient authentication scopes|insufficient permission/i.test(apiMsg)) {
+        revokeTokenQuietly(authState.accessToken);
+        resetAuthStateMemory();
+        clearPersistedAdminSession();
+        authState.needsConsentPrompt = true;
+        throw new Error('Izin tulis Google Calendar belum aktif pada sesi login ini. Silakan login ulang lalu centang kotak izin kelola acara Google Calendar di popup Google.');
+      }
+      if (response.status === 403 && /writer access|forbidden/i.test(apiMsg)) {
+        throw new Error('Akun Google Anda belum diberi akses edit ("Make changes to events") pada Google Calendar bersama ini.');
       }
       throw new Error('Google Calendar Write HTTP ' + response.status + apiMsg);
     }
