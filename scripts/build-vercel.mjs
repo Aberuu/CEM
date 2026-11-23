@@ -59,11 +59,19 @@ if (!fs.existsSync(templatePath)) {
 
 // Bangun dist/js/config.js selalu dari template bersih agar kredensial lokal tidak ikut bocor jika env kosong.
 let configSource = fs.readFileSync(templatePath, 'utf8');
-const rawAdminEmails = getEnv('ADMIN_EMAILS');
+// Bersihkan awalan "ADMIN_EMAILS=" bila baris .env utuh ditempel ke kolom Value Vercel.
+const rawAdminEmails = getEnv('ADMIN_EMAILS').replace(/^ADMIN_EMAILS\s*=\s*/i, '');
 const allowedEmailHashes = rawAdminEmails
   ? rawAdminEmails
       .split(/[\s,;]+/)
-      .map((item) => item.trim().toLowerCase())
+      .map((item) =>
+        item
+          .trim()
+          .replace(/^ADMIN_EMAILS\s*=\s*/i, '')
+          .replace(/^["']|["']$/g, '')
+          .replace(/^mailto:/i, '')
+          .toLowerCase()
+      )
       .filter(Boolean)
       .map((email) => crypto.createHash('sha256').update(email, 'utf8').digest('hex'))
   : [];
