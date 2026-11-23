@@ -71,10 +71,19 @@
   border-color: var(--blue-primary);
 }
 
-/* Poster rasio 0.79 sesuai PRD (79:100) */
+@media (prefers-color-scheme: dark) {
+  .event-card:hover {
+    border-color: #ffffff;
+  }
+}
+
+/* Thumbnail event 1:1 inset agar sejajar dengan tepi kiri-kanan isi kartu */
 .event-card__media {
   position: relative;
-  aspect-ratio: 79 / 100;
+  margin: 20px 20px 0;
+  aspect-ratio: 1 / 1;
+  border-radius: calc(var(--radius-card) - 6px);
+  border: 1px solid var(--border-dark);
   overflow: hidden;
   background-color: var(--blue-soft);
 }
@@ -83,6 +92,7 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
+  display: block;
   transition: transform 0.35s ease;
 }
 
@@ -94,7 +104,7 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding: 20px;
+  padding: 16px 20px 20px;
   flex: 1;
 }
 
@@ -781,6 +791,11 @@
 .info-dl dd {
   margin: 2px 0 0;
   font-weight: 500;
+}
+
+.info-dl dd a:hover {
+  text-decoration: underline;
+  color: var(--blue-primary);
 }
 
 /* Tabel Kalender Bulanan */

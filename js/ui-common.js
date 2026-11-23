@@ -131,7 +131,7 @@ window.PortalKampus = window.PortalKampus || {};
     return (
       '<article class="event-card' + animClass + '" data-cat="' + svc.escapeHtml(event.category) + '">' +
         '<div class="event-card__media">' +
-          '<img src="' + svc.escapeHtml(event.poster) + '" width="720" height="910" ' +
+          '<img src="' + svc.escapeHtml(event.poster) + '" width="720" height="720" ' +
           'alt="' + svc.escapeHtml(event.posterAlt || title) + '" loading="lazy" decoding="async" ' +
           'data-fallback="' + svc.escapeHtml(fallbackPoster) + '">' +
         '</div>' +
